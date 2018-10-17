@@ -4,8 +4,8 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_GATE_ASSIGNMENT_PB_READER_H
-#define SMART_SZX_GATE_ASSIGNMENT_PB_READER_H
+#ifndef SMART_QYM_INVENTORY_ROUTING_PB_READER_H
+#define SMART_QYM_INVENTORY_ROUTING_PB_READER_H
 
 
 #include <iostream>
@@ -61,4 +61,4 @@ static bool save(const std::string &path, const T &obj) {
 }
 
 
-#endif // SMART_SZX_GATE_ASSIGNMENT_PB_READER_H
+#endif // SMART_QYM_INVENTORY_ROUTING_PB_READER_H

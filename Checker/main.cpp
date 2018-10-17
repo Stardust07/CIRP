@@ -6,7 +6,7 @@
 #include "Visualizer.h"
 
 #include "../Solver/PbReader.h"
-#include "../Solver/GateAssignment.pb.h"
+#include "../Solver/InventoryRouting.pb.h"
 
 
 using namespace std;
@@ -14,12 +14,15 @@ using namespace szx;
 using namespace pb;
 
 int main(int argc, char *argv[]) {
+    static constexpr double DefaultDoubleGap = 0.001;
+
     enum CheckerFlag {
         IoError = 0x0,
         FormatError = 0x1,
-        FlightNotAssignedError = 0x2,
-        IncompatibleAssignmentError = 0x4,
-        FlightOverlapError = 0x8
+        SubtourExistenceError = 0x2,
+        MultipleVisitError = 0x4,
+        LoadDeliveryError = 0x8,
+        QuantityReasonabilityError = 0x16
     };
 
     string inputPath;
@@ -28,21 +31,21 @@ int main(int argc, char *argv[]) {
     if (argc > 1) {
         inputPath = argv[1];
     } else {
-        cout << "input path: " << flush;
+        cerr << "input path: " << flush;
         cin >> inputPath;
     }
 
     if (argc > 2) {
         outputPath = argv[2];
     } else {
-        cout << "output path: " << flush;
+        cerr << "output path: " << flush;
         cin >> outputPath;
     }
 
-    pb::GateAssignment::Input input;
+    pb::InventoryRouting::Input input;
     if (!load(inputPath, input)) { return ~CheckerFlag::IoError; }
 
-    pb::GateAssignment::Output output;
+    pb::InventoryRouting::Output output;
     ifstream ifs(outputPath);
     if (!ifs.is_open()) { return ~CheckerFlag::IoError; }
     string submission;
@@ -53,53 +56,89 @@ int main(int argc, char *argv[]) {
 
     // check solution.
     int error = 0;
-    int flightNumOnBridge = 0;
-    if (output.assignments().size() != input.flights().size()) { error |= CheckerFlag::FormatError; }
-    int f = 0;
-    for (auto gate = output.assignments().begin(); gate != output.assignments().end(); ++gate, ++f) {
-        // check constraints.
-        if ((*gate < 0) || (*gate >= input.airport().gates().size())) { error |= CheckerFlag::FlightNotAssignedError; }
-        for (auto ig = input.flights(f).incompatiblegates().begin(); ig != input.flights(f).incompatiblegates().end(); ++ig) {
-            if (*gate == *ig) { error |= CheckerFlag::IncompatibleAssignmentError; }
-        }
-        const auto &flight(input.flights(f));
-        for (auto flight1 = input.flights().begin(); flight1 != input.flights().end(); ++flight1) {
-            if (*gate != output.assignments(flight1->id())) { continue; }
-            int gap = max(flight.turnaround().begin() - flight1->turnaround().end(),
-                flight1->turnaround().begin() - flight.turnaround().begin());
-            if (gap < input.airport().gates(*gate).mingap()) { error |= CheckerFlag::FlightOverlapError; }
-        }
 
-        // check objective.
-        if (*gate < input.airport().bridgenum()) { ++flightNumOnBridge; }
+    int nodeNum = input.nodes_size();
+    const auto &allRoutes(*output.mutable_allroutes());
+    const auto &nodes(*input.mutable_nodes());
+    
+    // check multiple visit.
+    for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
+        vector<int> visitedTimes(nodeNum, 0);
+        for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
+            for (auto dl = vr->deliveries().begin(); dl != vr->deliveries().end(); ++dl) {
+                ++visitedTimes[dl->node()];
+            }
+        }
+        for (int i = 1; i < nodeNum; ++i) {
+            if (visitedTimes[i] > 1) {
+                error |= CheckerFlag::MultipleVisitError;
+            }
+        }
+    }
+
+    // check load-deliver equality.
+    for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
+        for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
+            int totalQuantity = 0;
+            for (auto dl = vr->deliveries().begin(); dl != vr->deliveries().end(); ++dl) {
+                totalQuantity += dl->quantity();
+            }
+            if (abs(totalQuantity) > DefaultDoubleGap) {
+                error |= CheckerFlag::LoadDeliveryError;
+            }
+        }
+    }
+
+    // check rest quantity
+    double holdingCost = 0;
+    vector<int> restQuntity(nodeNum, 0);
+    for (auto i = nodes.begin(); i != nodes.end(); ++i) {
+        restQuntity[i->id()] = i->initquantity();
+    }
+    for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
+        for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
+            for (auto dl = vr->deliveries().begin(); dl != vr->deliveries().end(); ++dl) {
+                restQuntity[dl->node()] += dl->quantity();
+            }
+        }
+        for (auto i = nodes.begin(); i != nodes.end(); ++i) {
+            int id = i->id();
+            if (id > 0) {
+                if (lround(restQuntity[id]) > i->capacity()) { error |= CheckerFlag::QuantityReasonabilityError; }
+                restQuntity[id] -= i->unitdemand();
+                if (lround(restQuntity[id]) < i->minlevel()) { error |= CheckerFlag::QuantityReasonabilityError; }
+            } else if (id == 0) {
+                if (lround(restQuntity[id]) < i->minlevel()) { error |= CheckerFlag::QuantityReasonabilityError; }
+                restQuntity[id] -= i->unitdemand();
+                if (lround(restQuntity[id]) > i->capacity()) { error |= CheckerFlag::QuantityReasonabilityError; }
+            }
+            holdingCost += i->holidingcost() * restQuntity[id];
+        }
+    }
+
+    // check objective.
+    auto costOfEdge = [](const pb::Node &i, const pb::Node &j)->double {
+        double value = 0;
+        value = sqrt(pow(i.x() - j.x(), 2) + pow(i.y() - j.y(), 2));
+        value = round(value);
+        return value;
+    };
+    double routingCost = 0;
+    for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
+        vector<int> visitedTimes(nodeNum, 0);
+        for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
+            if (vr->deliveries_size() <= 1) { continue; }
+            int preNode = 0;
+            for (auto dl = vr->deliveries().begin(); dl != vr->deliveries().end(); ++dl) {
+                routingCost += costOfEdge(nodes[preNode], nodes[dl->node()]);
+                preNode = dl->node();
+            }
+        }
     }
 
     // visualize solution.
-    double pixelPerMinute = 1;
-    double pixelPerGate = 30;
-    int horizonLen = 0;
-    for (auto flight = input.flights().begin(); flight != input.flights().end(); ++flight) {
-        horizonLen = max(horizonLen, flight->turnaround().end());
-    }
-
-    auto pos = outputPath.find_last_of('/');
-    string outputName = (pos == string::npos) ? outputPath : outputPath.substr(pos + 1);
-    Drawer draw;
-    draw.begin("Visualization/" + outputName + ".html", horizonLen * pixelPerMinute, input.airport().gates().size() * pixelPerGate, 1, 0);
-    f = 0;
-    for (auto gate = output.assignments().begin(); gate != output.assignments().end(); ++gate, ++f) {
-        // check constraints.
-        if ((*gate < 0) || (*gate >= input.airport().gates().size())) { continue; }
-        bool incompat = false;
-        for (auto ig = input.flights(f).incompatiblegates().begin(); ig != input.flights(f).incompatiblegates().end(); ++ig) {
-            if (*gate == *ig) { incompat = true; break; }
-        }
-        const auto &flight(input.flights(f));
-        draw.rect(flight.turnaround().begin() * pixelPerMinute, *gate * pixelPerGate, 
-            (flight.turnaround().end() - flight.turnaround().begin()) * pixelPerMinute, pixelPerGate,
-            false, to_string(f), "000000", incompat ? "00c00080" : "4080ff80");
-    }
-    draw.end();
-
-    return (error == 0) ? flightNumOnBridge : ~error;
+    // TODO[qym][5]: 
+    double returnCode = (error == 0) ? (routingCost + holdingCost) : ~error;
+    cout << "Return Code: " << returnCode << endl;
+    return (int)(returnCode * 1000);
 }

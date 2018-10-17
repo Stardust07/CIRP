@@ -19,11 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Solver\GateAssignment.pb.cc" />
+    <ClCompile Include="..\Solver\InventoryRouting.pb.cc" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Solver\GateAssignment.pb.h" />
+    <ClInclude Include="..\Solver\InventoryRouting.pb.h" />
     <ClInclude Include="..\Solver\PbReader.h" />
     <ClInclude Include="Visualizer.h" />
   </ItemGroup>

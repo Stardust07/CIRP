@@ -4,8 +4,8 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_GATE_ASSIGNMENT_PROBLEM_H
-#define SMART_SZX_GATE_ASSIGNMENT_PROBLEM_H
+#ifndef SMART_QYM_INVENTORY_ROUTING_PROBLEM_H
+#define SMART_QYM_INVENTORY_ROUTING_PROBLEM_H
 
 
 #include "Config.h"
@@ -16,7 +16,7 @@
 
 #include "Common.h"
 #include "PbReader.h"
-#include "GateAssignment.pb.h"
+#include "InventoryRouting.pb.h"
 
 
 namespace szx {
@@ -24,42 +24,37 @@ namespace szx {
 class Problem {
     #pragma region Type
 public:
-    struct Input : public pb::GateAssignment::Input {
+    using Price = double;
+
+    struct Input : public pb::InventoryRouting::Input {
         bool load(const String &path) { return pb::load(path, *this); }
     };
 
-    struct Output : public pb::GateAssignment::Output {
+    struct Output : public pb::InventoryRouting::Output {
         bool save(const String &path, pb::Submission &submission) const {
             std::ofstream ofs(path);
             if (!ofs.is_open()) { return false; }
 
             // TODO[0]: fill the submission information.
-            submission.set_author("szx");
+            submission.set_author("qym");
             submission.set_algorithm("rand");
             submission.set_cpu("Intel Core i5-7400 3.00GHz");
             submission.set_ram("16G 2400MHz");
             submission.set_language("C++");
             submission.set_compiler("VS2017");
             submission.set_os("Windows 10");
-            submission.set_problem("GateAssignment");
+            submission.set_problem("InventoryRouting");
 
             ofs << protobufToJson(submission, false) << std::endl << protobufToJson(*this);
             return true;
         }
 
-        ID flightNumOnBridge = 0;
+        Price totalCost = 0;
     };
     #pragma endregion Type
 
     #pragma region Constant
 public:
-    enum {
-        MaxGateNum = 100,
-        MaxBridgeNum = 30,
-        MaxFlightNum = 400,
-
-        InvalidId = -1,
-    };
     #pragma endregion Constant
 
     #pragma region Constructor
@@ -78,4 +73,4 @@ public:
 }
 
 
-#endif // SMART_SZX_GATE_ASSIGNMENT_PROBLEM_H
+#endif // SMART_QYM_INVENTORY_ROUTING_PROBLEM_H

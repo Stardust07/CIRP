@@ -40,11 +40,6 @@ public:
 
     struct InstanceTrait {
         int horizonLen = 24 * 60;
-        Interval<int> gateNum = Interval<int>(60, Problem::MaxGateNum);
-        Interval<int> bridgeNum = Interval<int>(20, Problem::MaxBridgeNum);
-        Interval<int> flightNum = Interval<int>(100, Problem::MaxFlightNum);
-        Interval<int> incompatibleGateNumPerFlight = Interval<int>(0, 8);
-        Interval<int> turnaroundLen = Interval<int>(40, 8 * 60);
     };
     #pragma endregion Type
 
@@ -83,6 +78,21 @@ public:
     void generateInstance() {
         InstanceTrait trait;
         generateInstance(trait);
+    }
+    void convertInstanceToPb(const String &filePath);
+    void convertAllInstancesToPb();
+
+private:
+    void setNodeInformation(pb::Node &node, int id, double x, double y, 
+        int initialQuantity, int capacity, int minLevel, int unitDemand, double holdingCost) {
+        node.set_id(id);
+        node.set_x(x);
+        node.set_y(y);
+        node.set_initquantity(initialQuantity);
+        node.set_capacity(capacity);
+        node.set_minlevel(minLevel);
+        node.set_unitdemand(unitDemand);
+        node.set_holidingcost(holdingCost);
     }
     #pragma endregion Method
 

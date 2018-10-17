@@ -168,45 +168,111 @@ void Simulator::parallelBenchmark(int repeat) {
 }
 
 void Simulator::generateInstance(const InstanceTrait &trait) {
-    Random rand;
+    convertAllInstancesToPb();
+}
 
-    int gateNum = rand.pick(trait.gateNum.begin, trait.gateNum.end);
-    int flightNum = rand.pick(trait.flightNum.begin, trait.flightNum.end);
+void Simulator::convertInstanceToPb(const String & fileName) {
+    ifstream ifs(InstanceDir() + "Origin/" + fileName + ".dat");
+    if (!ifs.is_open()) { return; }
 
     Problem::Input input;
-    input.mutable_airport()->set_bridgenum(rand.pick(trait.bridgeNum.begin, trait.bridgeNum.end));
-    for (int g = 0; g < gateNum; ++g) {
-        auto &gate(*input.mutable_airport()->add_gates());
-        gate.set_id(g);
-        gate.set_mingap(30);
-    }
-    for (auto f = 0; f < flightNum; ++f) {
-        auto &flight(*input.add_flights());
-        flight.set_id(f);
 
-        int turnaroudLen = rand.pick(trait.turnaroundLen.begin, trait.turnaroundLen.end);
-        if (turnaroudLen > 3 * 60) { // reduce long turnaround.
-            turnaroudLen = rand.pick(trait.turnaroundLen.begin, trait.turnaroundLen.end);
-        }
-        int turnaroundBegin = rand.pick(0, trait.horizonLen - turnaroudLen);
-        flight.mutable_turnaround()->set_begin(turnaroundBegin);
-        flight.mutable_turnaround()->set_end(turnaroundBegin + turnaroudLen);
+    int nodeNum, periodNum, vehicleCapacity;
+    ifs >> nodeNum >> periodNum >> vehicleCapacity;
+    input.set_periodnum(periodNum);
 
-        int incompatibleGateNum = rand.pick(trait.incompatibleGateNumPerFlight.begin, trait.incompatibleGateNumPerFlight.end);
-        Sampling sample(rand, incompatibleGateNum);
-        List<int> pickedGates(incompatibleGateNum + 1);
-        for (auto g = 0; g < gateNum; ++g) { pickedGates[sample.isPicked()] = g; }
-        for (auto ig = 1; ig <= incompatibleGateNum; ++ig) {
-            flight.add_incompatiblegates(pickedGates[ig]);
-        }
+    auto &vehicle(*input.add_vehicles());
+    vehicle.set_id(0);
+    vehicleCapacity /= 1; // all vehicles share the capacity.
+    vehicle.set_capacity(vehicleCapacity);
+
+    int id;
+    double xPoint;
+    double yPoint;
+    int initialQuantity;
+    int capacity;
+    int minLevel;
+    int unitDemand;
+    double holdingCost;
+
+    auto &supplier(*input.add_nodes());
+    ifs >> id >> xPoint >> yPoint >> initialQuantity >> unitDemand >> holdingCost;
+    setNodeInformation(supplier, id - 1, xPoint, yPoint, initialQuantity, initialQuantity + unitDemand * periodNum, 0, -unitDemand, holdingCost);
+    for (int i = 1; i < nodeNum; ++i) {
+        auto &node(*input.add_nodes());
+        ifs >> id >> xPoint >> yPoint >> initialQuantity >> capacity >> minLevel >> unitDemand >> holdingCost;
+        setNodeInformation(node, id - 1, xPoint, yPoint, initialQuantity, capacity, minLevel, unitDemand, holdingCost);
     }
+    //input.nodeNum = input.nodes.size();
+    ifs.close();
 
     ostringstream path;
-    path << InstanceDir() << "rand.g" << input.airport().gates().size()
-        << "b" << input.airport().bridgenum()
-        << "f" << input.flights().size()
-        << "h" << trait.horizonLen << ".json";
+    path << InstanceDir() << fileName << ".json";
     save(path.str(), input);
+}
+
+void Simulator::convertAllInstancesToPb() {
+    int instanceCount[] = { 50, 50, 30, 30, 30, 30 };
+    string instanceName[] = {
+        "lowcost_H3/abs1n5","lowcost_H3/abs2n5","lowcost_H3/abs3n5","lowcost_H3/abs4n5","lowcost_H3/abs5n5",
+        "lowcost_H3/abs1n10","lowcost_H3/abs2n10","lowcost_H3/abs3n10","lowcost_H3/abs4n10","lowcost_H3/abs5n10",
+        "lowcost_H3/abs1n15","lowcost_H3/abs2n15","lowcost_H3/abs3n15","lowcost_H3/abs4n15","lowcost_H3/abs5n15",
+        "lowcost_H3/abs1n20","lowcost_H3/abs2n20","lowcost_H3/abs3n20","lowcost_H3/abs4n20","lowcost_H3/abs5n20",
+        "lowcost_H3/abs1n25","lowcost_H3/abs2n25","lowcost_H3/abs3n25","lowcost_H3/abs4n25","lowcost_H3/abs5n25",
+        "lowcost_H3/abs1n30","lowcost_H3/abs2n30","lowcost_H3/abs3n30","lowcost_H3/abs4n30","lowcost_H3/abs5n30",
+        "lowcost_H3/abs1n35","lowcost_H3/abs2n35","lowcost_H3/abs3n35","lowcost_H3/abs4n35","lowcost_H3/abs5n35",
+        "lowcost_H3/abs1n40","lowcost_H3/abs2n40","lowcost_H3/abs3n40","lowcost_H3/abs4n40","lowcost_H3/abs5n40",
+        "lowcost_H3/abs1n45","lowcost_H3/abs2n45","lowcost_H3/abs3n45","lowcost_H3/abs4n45","lowcost_H3/abs5n45",
+        "lowcost_H3/abs1n50","lowcost_H3/abs2n50","lowcost_H3/abs3n50","lowcost_H3/abs4n50","lowcost_H3/abs5n50",
+
+        "highcost_H3/abs1n5","highcost_H3/abs2n5","highcost_H3/abs3n5","highcost_H3/abs4n5","highcost_H3/abs5n5",
+        "highcost_H3/abs1n10","highcost_H3/abs2n10","highcost_H3/abs3n10","highcost_H3/abs4n10","highcost_H3/abs5n10",
+        "highcost_H3/abs1n15","highcost_H3/abs2n15","highcost_H3/abs3n15","highcost_H3/abs4n15","highcost_H3/abs5n15",
+        "highcost_H3/abs1n20","highcost_H3/abs2n20","highcost_H3/abs3n20","highcost_H3/abs4n20","highcost_H3/abs5n20",
+        "highcost_H3/abs1n25","highcost_H3/abs2n25","highcost_H3/abs3n25","highcost_H3/abs4n25","highcost_H3/abs5n25",
+        "highcost_H3/abs1n30","highcost_H3/abs2n30","highcost_H3/abs3n30","highcost_H3/abs4n30","highcost_H3/abs5n30",
+        "highcost_H3/abs1n35","highcost_H3/abs2n35","highcost_H3/abs3n35","highcost_H3/abs4n35","highcost_H3/abs5n35",
+        "highcost_H3/abs1n40","highcost_H3/abs2n40","highcost_H3/abs3n40","highcost_H3/abs4n40","highcost_H3/abs5n40",
+        "highcost_H3/abs1n45","highcost_H3/abs2n45","highcost_H3/abs3n45","highcost_H3/abs4n45","highcost_H3/abs5n45",
+        "highcost_H3/abs1n50","highcost_H3/abs2n50","highcost_H3/abs3n50","highcost_H3/abs4n50","highcost_H3/abs5n50",
+
+        "lowcost_H6/abs1n5","lowcost_H6/abs2n5","lowcost_H6/abs3n5","lowcost_H6/abs4n5","lowcost_H6/abs5n5",
+        "lowcost_H6/abs1n10","lowcost_H6/abs2n10","lowcost_H6/abs3n10","lowcost_H6/abs4n10","lowcost_H6/abs5n10",
+        "lowcost_H6/abs1n15","lowcost_H6/abs2n15","lowcost_H6/abs3n15","lowcost_H6/abs4n15","lowcost_H6/abs5n15",
+        "lowcost_H6/abs1n20","lowcost_H6/abs2n20","lowcost_H6/abs3n20","lowcost_H6/abs4n20","lowcost_H6/abs5n20",
+        "lowcost_H6/abs1n25","lowcost_H6/abs2n25","lowcost_H6/abs3n25","lowcost_H6/abs4n25","lowcost_H6/abs5n25",
+        "lowcost_H6/abs1n30","lowcost_H6/abs2n30","lowcost_H6/abs3n30","lowcost_H6/abs4n30","lowcost_H6/abs5n30",
+
+        "highcost_H6/abs1n5","highcost_H6/abs2n5","highcost_H6/abs3n5","highcost_H6/abs4n5","highcost_H6/abs5n5",
+        "highcost_H6/abs1n10","highcost_H6/abs2n10","highcost_H6/abs3n10","highcost_H6/abs4n10","highcost_H6/abs5n10",
+        "highcost_H6/abs1n15","highcost_H6/abs2n15","highcost_H6/abs3n15","highcost_H6/abs4n15","highcost_H6/abs5n15",
+        "highcost_H6/abs1n20","highcost_H6/abs2n20","highcost_H6/abs3n20","highcost_H6/abs4n20","highcost_H6/abs5n20",
+        "highcost_H6/abs1n25","highcost_H6/abs2n25","highcost_H6/abs3n25","highcost_H6/abs4n25","highcost_H6/abs5n25",
+        "highcost_H6/abs1n30","highcost_H6/abs2n30","highcost_H6/abs3n30","highcost_H6/abs4n30","highcost_H6/abs5n30",
+
+        "large_lowcost/abs1n50","large_lowcost/abs2n50","large_lowcost/abs3n50","large_lowcost/abs4n50","large_lowcost/abs5n50",
+        "large_lowcost/abs6n50","large_lowcost/abs7n50","large_lowcost/abs8n50","large_lowcost/abs9n50","large_lowcost/abs10n50",
+        "large_lowcost/abs1n100","large_lowcost/abs2n100","large_lowcost/abs3n100","large_lowcost/abs4n100","large_lowcost/abs5n100",
+        "large_lowcost/abs6n100","large_lowcost/abs7n100","large_lowcost/abs8n100","large_lowcost/abs9n100","large_lowcost/abs10n100",
+        "large_lowcost/abs1n200","large_lowcost/abs2n200","large_lowcost/abs3n200","large_lowcost/abs4n200","large_lowcost/abs5n200",
+        "large_lowcost/abs6n200","large_lowcost/abs7n200","large_lowcost/abs8n200","large_lowcost/abs9n200","large_lowcost/abs10n200",
+
+        "large_highcost/abs1n50","large_highcost/abs2n50","large_highcost/abs3n50","large_highcost/abs4n50","large_highcost/abs5n50",
+        "large_highcost/abs6n50","large_highcost/abs7n50","large_highcost/abs8n50","large_highcost/abs9n50","large_highcost/abs10n50",
+        "large_highcost/abs1n100","large_highcost/abs2n100","large_highcost/abs3n100","large_highcost/abs4n100","large_highcost/abs5n100",
+        "large_highcost/abs6n100","large_highcost/abs7n100","large_highcost/abs8n100","large_highcost/abs9n100","large_highcost/abs10n100",
+        "large_highcost/abs1n200","large_highcost/abs2n200","large_highcost/abs3n200","large_highcost/abs4n200","large_highcost/abs5n200",
+        "large_highcost/abs6n200","large_highcost/abs7n200","large_highcost/abs8n200","large_highcost/abs9n200","large_highcost/abs10n200",
+    };
+
+    auto fileExists = [](const string &path) {
+        ifstream fs(path);
+        return static_cast<bool>(fs);
+    };
+    for (int i = 0; i < 220; ++i) {
+        //if (fileExists(InstanceDir() + "Pb/Instances_" + instanceName[i] + ".json")) { continue; }
+        convertInstanceToPb("Instances_" + instanceName[i]);
+    }
 }
 
 }

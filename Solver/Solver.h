@@ -4,8 +4,8 @@
 /// note  : 1.	
 ////////////////////////////////
 
-#ifndef SMART_SZX_GATE_ASSIGNMENT_SOLVER_H
-#define SMART_SZX_GATE_ASSIGNMENT_SOLVER_H
+#ifndef SMART_QYM_INVENTORY_ROUTING_SOLVER_H
+#define SMART_QYM_INVENTORY_ROUTING_SOLVER_H
 
 
 #include "Config.h"
@@ -192,7 +192,7 @@ public:
     #pragma region Method
 public:
     bool solve(); // return true if exit normally. solve by multiple workers together.
-    bool check(Length &obj) const;
+    bool check(double &obj) const;
     void record() const; // save running log.
 
 protected:
@@ -206,7 +206,7 @@ public:
     Problem::Output output;
 
     struct { // auxiliary data for solver.
-        List<List<bool>> isCompatible; // isCompatible[f][g] is true if flight f is compatible with gate g.
+        List<List<double>> routingCost; // routingCost[i][j] is the routing cost of arc (i,j).
     } aux;
 
     Environment env;
@@ -221,4 +221,4 @@ public:
 }
 
 
-#endif // SMART_SZX_GATE_ASSIGNMENT_SOLVER_H
+#endif // SMART_QYM_INVENTORY_ROUTING_SOLVER_H

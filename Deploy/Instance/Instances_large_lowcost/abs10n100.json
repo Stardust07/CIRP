@@ -1,0 +1,1021 @@
+{
+ "periodNum": 6,
+ "vehicles": [
+  {
+   "id": 0,
+   "capacity": 8146
+  }
+ ],
+ "nodes": [
+  {
+   "id": 0,
+   "x": 357,
+   "y": 171,
+   "initQuantity": 13622,
+   "capacity": 46208,
+   "minLevel": 0,
+   "unitDemand": -5431,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 1,
+   "x": 220,
+   "y": 322,
+   "initQuantity": 92,
+   "capacity": 138,
+   "minLevel": 0,
+   "unitDemand": 46,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 2,
+   "x": 63,
+   "y": 410,
+   "initQuantity": 38,
+   "capacity": 57,
+   "minLevel": 0,
+   "unitDemand": 19,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 3,
+   "x": 465,
+   "y": 350,
+   "initQuantity": 24,
+   "capacity": 48,
+   "minLevel": 0,
+   "unitDemand": 24,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 4,
+   "x": 371,
+   "y": 438,
+   "initQuantity": 91,
+   "capacity": 182,
+   "minLevel": 0,
+   "unitDemand": 91,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 5,
+   "x": 221,
+   "y": 491,
+   "initQuantity": 53,
+   "capacity": 106,
+   "minLevel": 0,
+   "unitDemand": 53,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 6,
+   "x": 171,
+   "y": 371,
+   "initQuantity": 94,
+   "capacity": 188,
+   "minLevel": 0,
+   "unitDemand": 94,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 7,
+   "x": 201,
+   "y": 128,
+   "initQuantity": 44,
+   "capacity": 88,
+   "minLevel": 0,
+   "unitDemand": 44,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 8,
+   "x": 335,
+   "y": 306,
+   "initQuantity": 36,
+   "capacity": 54,
+   "minLevel": 0,
+   "unitDemand": 18,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 9,
+   "x": 328,
+   "y": 195,
+   "initQuantity": 124,
+   "capacity": 186,
+   "minLevel": 0,
+   "unitDemand": 62,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 10,
+   "x": 1,
+   "y": 399,
+   "initQuantity": 32,
+   "capacity": 48,
+   "minLevel": 0,
+   "unitDemand": 16,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 11,
+   "x": 487,
+   "y": 483,
+   "initQuantity": 57,
+   "capacity": 114,
+   "minLevel": 0,
+   "unitDemand": 57,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 12,
+   "x": 463,
+   "y": 149,
+   "initQuantity": 15,
+   "capacity": 30,
+   "minLevel": 0,
+   "unitDemand": 15,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 13,
+   "x": 282,
+   "y": 152,
+   "initQuantity": 12,
+   "capacity": 24,
+   "minLevel": 0,
+   "unitDemand": 12,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 14,
+   "x": 36,
+   "y": 84,
+   "initQuantity": 43,
+   "capacity": 86,
+   "minLevel": 0,
+   "unitDemand": 43,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 15,
+   "x": 326,
+   "y": 266,
+   "initQuantity": 146,
+   "capacity": 219,
+   "minLevel": 0,
+   "unitDemand": 73,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 16,
+   "x": 85,
+   "y": 11,
+   "initQuantity": 15,
+   "capacity": 30,
+   "minLevel": 0,
+   "unitDemand": 15,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 17,
+   "x": 454,
+   "y": 163,
+   "initQuantity": 80,
+   "capacity": 160,
+   "minLevel": 0,
+   "unitDemand": 80,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 18,
+   "x": 301,
+   "y": 341,
+   "initQuantity": 74,
+   "capacity": 148,
+   "minLevel": 0,
+   "unitDemand": 74,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 19,
+   "x": 249,
+   "y": 449,
+   "initQuantity": 99,
+   "capacity": 198,
+   "minLevel": 0,
+   "unitDemand": 99,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 20,
+   "x": 166,
+   "y": 300,
+   "initQuantity": 68,
+   "capacity": 136,
+   "minLevel": 0,
+   "unitDemand": 68,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 21,
+   "x": 259,
+   "y": 266,
+   "initQuantity": 12,
+   "capacity": 24,
+   "minLevel": 0,
+   "unitDemand": 12,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 22,
+   "x": 171,
+   "y": 427,
+   "initQuantity": 63,
+   "capacity": 126,
+   "minLevel": 0,
+   "unitDemand": 63,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 23,
+   "x": 447,
+   "y": 36,
+   "initQuantity": 86,
+   "capacity": 129,
+   "minLevel": 0,
+   "unitDemand": 43,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 24,
+   "x": 383,
+   "y": 405,
+   "initQuantity": 120,
+   "capacity": 180,
+   "minLevel": 0,
+   "unitDemand": 60,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 25,
+   "x": 102,
+   "y": 404,
+   "initQuantity": 158,
+   "capacity": 237,
+   "minLevel": 0,
+   "unitDemand": 79,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 26,
+   "x": 477,
+   "y": 42,
+   "initQuantity": 40,
+   "capacity": 60,
+   "minLevel": 0,
+   "unitDemand": 20,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 27,
+   "x": 331,
+   "y": 442,
+   "initQuantity": 20,
+   "capacity": 40,
+   "minLevel": 0,
+   "unitDemand": 20,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 28,
+   "x": 294,
+   "y": 11,
+   "initQuantity": 154,
+   "capacity": 231,
+   "minLevel": 0,
+   "unitDemand": 77,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 29,
+   "x": 0,
+   "y": 150,
+   "initQuantity": 142,
+   "capacity": 213,
+   "minLevel": 0,
+   "unitDemand": 71,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 30,
+   "x": 197,
+   "y": 343,
+   "initQuantity": 31,
+   "capacity": 62,
+   "minLevel": 0,
+   "unitDemand": 31,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 31,
+   "x": 459,
+   "y": 294,
+   "initQuantity": 24,
+   "capacity": 48,
+   "minLevel": 0,
+   "unitDemand": 24,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 32,
+   "x": 17,
+   "y": 391,
+   "initQuantity": 65,
+   "capacity": 130,
+   "minLevel": 0,
+   "unitDemand": 65,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 33,
+   "x": 468,
+   "y": 464,
+   "initQuantity": 188,
+   "capacity": 282,
+   "minLevel": 0,
+   "unitDemand": 94,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 34,
+   "x": 276,
+   "y": 413,
+   "initQuantity": 154,
+   "capacity": 231,
+   "minLevel": 0,
+   "unitDemand": 77,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 35,
+   "x": 301,
+   "y": 487,
+   "initQuantity": 192,
+   "capacity": 288,
+   "minLevel": 0,
+   "unitDemand": 96,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 36,
+   "x": 286,
+   "y": 196,
+   "initQuantity": 130,
+   "capacity": 195,
+   "minLevel": 0,
+   "unitDemand": 65,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 37,
+   "x": 232,
+   "y": 89,
+   "initQuantity": 180,
+   "capacity": 270,
+   "minLevel": 0,
+   "unitDemand": 90,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 38,
+   "x": 75,
+   "y": 311,
+   "initQuantity": 186,
+   "capacity": 279,
+   "minLevel": 0,
+   "unitDemand": 93,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 39,
+   "x": 486,
+   "y": 196,
+   "initQuantity": 66,
+   "capacity": 132,
+   "minLevel": 0,
+   "unitDemand": 66,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 40,
+   "x": 376,
+   "y": 430,
+   "initQuantity": 120,
+   "capacity": 180,
+   "minLevel": 0,
+   "unitDemand": 60,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 41,
+   "x": 332,
+   "y": 38,
+   "initQuantity": 64,
+   "capacity": 96,
+   "minLevel": 0,
+   "unitDemand": 32,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 42,
+   "x": 257,
+   "y": 237,
+   "initQuantity": 80,
+   "capacity": 120,
+   "minLevel": 0,
+   "unitDemand": 40,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 43,
+   "x": 75,
+   "y": 34,
+   "initQuantity": 84,
+   "capacity": 168,
+   "minLevel": 0,
+   "unitDemand": 84,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 44,
+   "x": 455,
+   "y": 8,
+   "initQuantity": 42,
+   "capacity": 63,
+   "minLevel": 0,
+   "unitDemand": 21,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 45,
+   "x": 180,
+   "y": 78,
+   "initQuantity": 47,
+   "capacity": 94,
+   "minLevel": 0,
+   "unitDemand": 47,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 46,
+   "x": 24,
+   "y": 21,
+   "initQuantity": 78,
+   "capacity": 156,
+   "minLevel": 0,
+   "unitDemand": 78,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 47,
+   "x": 317,
+   "y": 357,
+   "initQuantity": 63,
+   "capacity": 126,
+   "minLevel": 0,
+   "unitDemand": 63,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 48,
+   "x": 29,
+   "y": 67,
+   "initQuantity": 70,
+   "capacity": 105,
+   "minLevel": 0,
+   "unitDemand": 35,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 49,
+   "x": 43,
+   "y": 91,
+   "initQuantity": 46,
+   "capacity": 92,
+   "minLevel": 0,
+   "unitDemand": 46,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 50,
+   "x": 167,
+   "y": 281,
+   "initQuantity": 72,
+   "capacity": 144,
+   "minLevel": 0,
+   "unitDemand": 72,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 51,
+   "x": 366,
+   "y": 325,
+   "initQuantity": 164,
+   "capacity": 246,
+   "minLevel": 0,
+   "unitDemand": 82,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 52,
+   "x": 458,
+   "y": 19,
+   "initQuantity": 96,
+   "capacity": 144,
+   "minLevel": 0,
+   "unitDemand": 48,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 53,
+   "x": 386,
+   "y": 4,
+   "initQuantity": 182,
+   "capacity": 273,
+   "minLevel": 0,
+   "unitDemand": 91,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 54,
+   "x": 124,
+   "y": 190,
+   "initQuantity": 46,
+   "capacity": 69,
+   "minLevel": 0,
+   "unitDemand": 23,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 55,
+   "x": 28,
+   "y": 85,
+   "initQuantity": 98,
+   "capacity": 147,
+   "minLevel": 0,
+   "unitDemand": 49,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 56,
+   "x": 263,
+   "y": 140,
+   "initQuantity": 37,
+   "capacity": 74,
+   "minLevel": 0,
+   "unitDemand": 37,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 57,
+   "x": 320,
+   "y": 461,
+   "initQuantity": 81,
+   "capacity": 162,
+   "minLevel": 0,
+   "unitDemand": 81,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 58,
+   "x": 446,
+   "y": 247,
+   "initQuantity": 51,
+   "capacity": 102,
+   "minLevel": 0,
+   "unitDemand": 51,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 59,
+   "x": 435,
+   "y": 210,
+   "initQuantity": 30,
+   "capacity": 45,
+   "minLevel": 0,
+   "unitDemand": 15,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 60,
+   "x": 227,
+   "y": 148,
+   "initQuantity": 106,
+   "capacity": 159,
+   "minLevel": 0,
+   "unitDemand": 53,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 61,
+   "x": 86,
+   "y": 306,
+   "initQuantity": 52,
+   "capacity": 78,
+   "minLevel": 0,
+   "unitDemand": 26,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 62,
+   "x": 200,
+   "y": 392,
+   "initQuantity": 42,
+   "capacity": 84,
+   "minLevel": 0,
+   "unitDemand": 42,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 63,
+   "x": 478,
+   "y": 330,
+   "initQuantity": 118,
+   "capacity": 177,
+   "minLevel": 0,
+   "unitDemand": 59,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 64,
+   "x": 192,
+   "y": 4,
+   "initQuantity": 69,
+   "capacity": 138,
+   "minLevel": 0,
+   "unitDemand": 69,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 65,
+   "x": 177,
+   "y": 336,
+   "initQuantity": 192,
+   "capacity": 288,
+   "minLevel": 0,
+   "unitDemand": 96,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 66,
+   "x": 53,
+   "y": 198,
+   "initQuantity": 43,
+   "capacity": 86,
+   "minLevel": 0,
+   "unitDemand": 43,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 67,
+   "x": 441,
+   "y": 201,
+   "initQuantity": 144,
+   "capacity": 216,
+   "minLevel": 0,
+   "unitDemand": 72,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 68,
+   "x": 107,
+   "y": 287,
+   "initQuantity": 64,
+   "capacity": 128,
+   "minLevel": 0,
+   "unitDemand": 64,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 69,
+   "x": 377,
+   "y": 355,
+   "initQuantity": 63,
+   "capacity": 126,
+   "minLevel": 0,
+   "unitDemand": 63,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 70,
+   "x": 492,
+   "y": 104,
+   "initQuantity": 188,
+   "capacity": 282,
+   "minLevel": 0,
+   "unitDemand": 94,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 71,
+   "x": 460,
+   "y": 37,
+   "initQuantity": 27,
+   "capacity": 54,
+   "minLevel": 0,
+   "unitDemand": 27,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 72,
+   "x": 108,
+   "y": 347,
+   "initQuantity": 32,
+   "capacity": 64,
+   "minLevel": 0,
+   "unitDemand": 32,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 73,
+   "x": 201,
+   "y": 391,
+   "initQuantity": 76,
+   "capacity": 152,
+   "minLevel": 0,
+   "unitDemand": 76,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 74,
+   "x": 343,
+   "y": 331,
+   "initQuantity": 114,
+   "capacity": 171,
+   "minLevel": 0,
+   "unitDemand": 57,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 75,
+   "x": 193,
+   "y": 121,
+   "initQuantity": 65,
+   "capacity": 130,
+   "minLevel": 0,
+   "unitDemand": 65,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 76,
+   "x": 122,
+   "y": 85,
+   "initQuantity": 84,
+   "capacity": 126,
+   "minLevel": 0,
+   "unitDemand": 42,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 77,
+   "x": 107,
+   "y": 76,
+   "initQuantity": 40,
+   "capacity": 80,
+   "minLevel": 0,
+   "unitDemand": 40,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 78,
+   "x": 198,
+   "y": 283,
+   "initQuantity": 192,
+   "capacity": 288,
+   "minLevel": 0,
+   "unitDemand": 96,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 79,
+   "x": 65,
+   "y": 475,
+   "initQuantity": 26,
+   "capacity": 39,
+   "minLevel": 0,
+   "unitDemand": 13,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 80,
+   "x": 91,
+   "y": 193,
+   "initQuantity": 48,
+   "capacity": 96,
+   "minLevel": 0,
+   "unitDemand": 48,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 81,
+   "x": 161,
+   "y": 58,
+   "initQuantity": 188,
+   "capacity": 282,
+   "minLevel": 0,
+   "unitDemand": 94,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 82,
+   "x": 202,
+   "y": 212,
+   "initQuantity": 46,
+   "capacity": 92,
+   "minLevel": 0,
+   "unitDemand": 46,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 83,
+   "x": 486,
+   "y": 284,
+   "initQuantity": 11,
+   "capacity": 22,
+   "minLevel": 0,
+   "unitDemand": 11,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 84,
+   "x": 322,
+   "y": 495,
+   "initQuantity": 192,
+   "capacity": 288,
+   "minLevel": 0,
+   "unitDemand": 96,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 85,
+   "x": 407,
+   "y": 154,
+   "initQuantity": 184,
+   "capacity": 276,
+   "minLevel": 0,
+   "unitDemand": 92,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 86,
+   "x": 50,
+   "y": 165,
+   "initQuantity": 198,
+   "capacity": 297,
+   "minLevel": 0,
+   "unitDemand": 99,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 87,
+   "x": 344,
+   "y": 149,
+   "initQuantity": 93,
+   "capacity": 186,
+   "minLevel": 0,
+   "unitDemand": 93,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 88,
+   "x": 417,
+   "y": 333,
+   "initQuantity": 27,
+   "capacity": 54,
+   "minLevel": 0,
+   "unitDemand": 27,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 89,
+   "x": 386,
+   "y": 321,
+   "initQuantity": 24,
+   "capacity": 48,
+   "minLevel": 0,
+   "unitDemand": 24,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 90,
+   "x": 396,
+   "y": 317,
+   "initQuantity": 140,
+   "capacity": 210,
+   "minLevel": 0,
+   "unitDemand": 70,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 91,
+   "x": 358,
+   "y": 239,
+   "initQuantity": 67,
+   "capacity": 134,
+   "minLevel": 0,
+   "unitDemand": 67,
+   "holidingCost": 0.04
+  },
+  {
+   "id": 92,
+   "x": 179,
+   "y": 423,
+   "initQuantity": 30,
+   "capacity": 45,
+   "minLevel": 0,
+   "unitDemand": 15,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 93,
+   "x": 81,
+   "y": 342,
+   "initQuantity": 50,
+   "capacity": 75,
+   "minLevel": 0,
+   "unitDemand": 25,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 94,
+   "x": 470,
+   "y": 201,
+   "initQuantity": 33,
+   "capacity": 66,
+   "minLevel": 0,
+   "unitDemand": 33,
+   "holidingCost": 0.01
+  },
+  {
+   "id": 95,
+   "x": 235,
+   "y": 486,
+   "initQuantity": 33,
+   "capacity": 66,
+   "minLevel": 0,
+   "unitDemand": 33,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 96,
+   "x": 300,
+   "y": 291,
+   "initQuantity": 69,
+   "capacity": 138,
+   "minLevel": 0,
+   "unitDemand": 69,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 97,
+   "x": 238,
+   "y": 288,
+   "initQuantity": 46,
+   "capacity": 69,
+   "minLevel": 0,
+   "unitDemand": 23,
+   "holidingCost": 0.02
+  },
+  {
+   "id": 98,
+   "x": 312,
+   "y": 343,
+   "initQuantity": 53,
+   "capacity": 106,
+   "minLevel": 0,
+   "unitDemand": 53,
+   "holidingCost": 0.05
+  },
+  {
+   "id": 99,
+   "x": 147,
+   "y": 452,
+   "initQuantity": 86,
+   "capacity": 129,
+   "minLevel": 0,
+   "unitDemand": 43,
+   "holidingCost": 0.03
+  },
+  {
+   "id": 100,
+   "x": 476,
+   "y": 465,
+   "initQuantity": 37,
+   "capacity": 74,
+   "minLevel": 0,
+   "unitDemand": 37,
+   "holidingCost": 0.04
+  }
+ ]
+}

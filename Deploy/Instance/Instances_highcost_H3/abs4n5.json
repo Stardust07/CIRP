@@ -1,0 +1,71 @@
+{
+ "periodNum": 3,
+ "vehicles": [
+  {
+   "id": 0,
+   "capacity": 268
+  }
+ ],
+ "nodes": [
+  {
+   "id": 0,
+   "x": 119,
+   "y": 168,
+   "initQuantity": 372,
+   "capacity": 909,
+   "minLevel": 0,
+   "unitDemand": -179,
+   "holidingCost": 0.3
+  },
+  {
+   "id": 1,
+   "x": 191,
+   "y": 336,
+   "initQuantity": 53,
+   "capacity": 106,
+   "minLevel": 0,
+   "unitDemand": 53,
+   "holidingCost": 0.2
+  },
+  {
+   "id": 2,
+   "x": 69,
+   "y": 349,
+   "initQuantity": 21,
+   "capacity": 42,
+   "minLevel": 0,
+   "unitDemand": 21,
+   "holidingCost": 0.19
+  },
+  {
+   "id": 3,
+   "x": 94,
+   "y": 235,
+   "initQuantity": 24,
+   "capacity": 48,
+   "minLevel": 0,
+   "unitDemand": 24,
+   "holidingCost": 0.24
+  },
+  {
+   "id": 4,
+   "x": 422,
+   "y": 279,
+   "initQuantity": 67,
+   "capacity": 134,
+   "minLevel": 0,
+   "unitDemand": 67,
+   "holidingCost": 0.22
+  },
+  {
+   "id": 5,
+   "x": 153,
+   "y": 108,
+   "initQuantity": 28,
+   "capacity": 42,
+   "minLevel": 0,
+   "unitDemand": 14,
+   "holidingCost": 0.4
+  }
+ ]
+}

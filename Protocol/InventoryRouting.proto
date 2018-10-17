@@ -1,0 +1,81 @@
+// # 概述
+// 使用 Google 的 Protocol Buffer (简称 protobuf) 定义.
+// 经典库存路由问题原始输入输出数据格式.
+// InventoryRouting 定义了算法所需的全部数据.
+// InventoryRouting.Input 定义了算法所需的全部输入数据.
+// InventoryRouting.Output 定义了算法所需的全部输出数据, 应输出至提交文件的第二行以后.
+// InventoryRouting.Submission 定义了向测评系统提交的计算结果文件的信息摘要, 应输出至提交文件的第一行.
+
+syntax = "proto3";
+
+package pb;
+
+option java_package = "pb";
+option java_outer_classname = "InventoryRouting";
+// option cc_enable_arenas = true;
+
+
+// 主要数据.
+message InventoryRouting { // 求解算法输入输出数据接口.
+  message Input { // 输入数据.
+    int32 periodNum = 1; // 周期数目
+    repeated Vehicle vehicles = 2; // 车辆列表.
+    repeated Node nodes = 3; // 节点列表.
+  }
+
+  message Output { // 求解结果输出数据.
+    repeated RoutesInPeriod allRoutes = 1; // routeLists[i] 表示周期 i 的所有配送路线.
+  }
+}
+
+message Node { // 节点信息
+  int32 id = 1; // 从 0 开始连续编号的内部唯一标识.(id=0 表示仓库, id>0 表示客户).
+  double x = 2; // 节点 x 坐标.
+  double y = 3; // 节点 y 坐标.
+  int32 initQuantity = 4; // 初始库存量.
+  int32 capacity = 5; // 容量.
+  int32 minLevel = 6; // 最低库存量.
+  int32 unitDemand = 7; // 单位周期消耗量.(对于仓库 unitDemand<=0,对于客户 unitDemand>=0).
+  double holidingCost = 8;  // 单位库存开销.
+}
+
+message Vehicle { // 车辆信息
+  int32 id = 1; // 从 0 开始连续编号的内部唯一标识.
+  int32 capacity = 2; // 车辆容量.
+}
+
+message Route { // 车辆配送路线信息.
+  repeated Delivery deliveries = 2; // 访问节点列表.
+}
+
+message RoutesInPeriod { // 每个周期所有车辆的路线信息.
+  repeated Route routes = 1; // routes[i] 表示 id=i 的车辆的路线.
+}
+
+message Delivery { // 配送信息.
+  int32 node = 1; // 配送节点的 id.
+  int32 quantity = 2; // quantity[i] 表示在节点 i 的送货量.(对于仓库 quantity<=0,对于客户 quantity>=0).
+}
+
+
+message Submission { // 测评系统提交信息摘要.
+  // 应在 SDK 内由提交者手工填写的数据项.
+  string author = 1; // 提交者姓名.
+  string algorithm = 2; // 算法名称.
+  string thread = 3; // 算法线程数
+  string cpu = 4; // 处理器型号与主频.
+  string ram = 5; // 内存容量与频率. (Windows 下可以使用 wmic memorychip 命令查看)
+  string language = 6; // 编程语言.
+  string compiler = 7; // 编译器.
+  string os = 8; // 操作系统
+
+  // 由 SDK 自动记录的数据项.
+  string problem = 21; // 问题名称.
+  string instance = 22; // 算例名称.
+  string duration = 23; // 求解耗时.
+
+  // 由服务器自动计算的数据项.
+  double obj = 31; // 计算结果目标函数值.
+  string email = 32; // 提交者邮箱.
+  string date = 33; // 提交时间.
+}

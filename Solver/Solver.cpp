@@ -71,10 +71,10 @@ int Solver::Cli::run(int argc, char * argv[]) {
     submission.set_duration(to_string(solver.timer.elapsedSeconds()) + "s");
 
     solver.output.save(env.slnPath, submission);
-    #if SZX_DEBUG
+    #if QYM_DEBUG
     solver.output.save(env.solutionPathWithTime(), submission);
     solver.record();
-    #endif // SZX_DEBUG
+    #endif // QYM_DEBUG
 
     return 0;
 }
@@ -123,12 +123,12 @@ void Solver::Environment::load(const String &filePath) {
 }
 
 void Solver::Environment::loadWithoutCalibrate(const String &filePath) {
-    // EXTEND[szx][8]: load environment from file.
-    // EXTEND[szx][8]: check file existence first.
+    // EXTEND[qym][8]: load environment from file.
+    // EXTEND[qym][8]: check file existence first.
 }
 
 void Solver::Environment::save(const String &filePath) const {
-    // EXTEND[szx][8]: save environment to file.
+    // EXTEND[qym][8]: save environment to file.
 }
 void Solver::Environment::calibrate() {
     // adjust thread number.
@@ -172,13 +172,13 @@ bool Solver::solve() {
 
     Log(LogSwitch::Szx::Framework) << "collect best result among all workers." << endl;
     int bestIndex = -1;
-    Length bestValue = 0;
+    double bestValue = 0;
     for (int i = 0; i < workerNum; ++i) {
         if (!success[i]) { continue; }
-        Log(LogSwitch::Szx::Framework) << "worker " << i << " got " << solutions[i].flightNumOnBridge << endl;
-        if (solutions[i].flightNumOnBridge <= bestValue) { continue; }
+        Log(LogSwitch::Szx::Framework) << "worker " << i << " got " << solutions[i].totalCost << endl;
+        if (solutions[i].totalCost <= bestValue) { continue; }
         bestIndex = i;
-        bestValue = solutions[i].flightNumOnBridge;
+        bestValue = solutions[i].totalCost;
     }
 
     env.rid = to_string(bestIndex);
@@ -188,15 +188,15 @@ bool Solver::solve() {
 }
 
 void Solver::record() const {
-    #if SZX_DEBUG
+    #if QYM_DEBUG
     int generation = 0;
 
     ostringstream log;
 
     System::MemoryUsage mu = System::peakMemoryUsage();
 
-    Length obj = output.flightNumOnBridge;
-    Length checkerObj = -1;
+    double obj = output.totalCost;
+    double checkerObj = -1;
     bool feasible = check(checkerObj);
 
     // record basic information.
@@ -204,16 +204,15 @@ void Solver::record() const {
         << env.rid << ","
         << env.instPath << ","
         << feasible << "," << (obj - checkerObj) << ","
-        << output.flightNumOnBridge << ","
+        << output.totalCost << ","
         << timer.elapsedSeconds() << ","
         << mu.physicalMemory << "," << mu.virtualMemory << ","
         << env.randSeed << ","
         << cfg.toBriefStr() << ","
-        << generation << "," << iteration << ","
-        << (100.0 * output.flightNumOnBridge / input.flights().size()) << "%,";
+        << generation << "," << iteration ;
 
     // record solution vector.
-    // EXTEND[szx][2]: save solution in log.
+    // EXTEND[qym][2]: save solution in log.
     log << endl;
 
     // append all text atomically.
@@ -223,44 +222,55 @@ void Solver::record() const {
     ofstream logFile(env.logPath, ios::app);
     logFile.seekp(0, ios::end);
     if (logFile.tellp() <= 0) {
-        logFile << "Time,ID,Instance,Feasible,ObjMatch,Width,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Ratio,Solution" << endl;
+        logFile << "Time,ID,Instance,Feasible,ObjMatch,Width,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
     }
     logFile << log.str();
     logFile.close();
-    #endif // SZX_DEBUG
+    #endif // QYM_DEBUG
 }
 
-bool Solver::check(Length &checkerObj) const {
-    #if SZX_DEBUG
+bool Solver::check(double &checkerObj) const {
+    #if QYM_DEBUG
     enum CheckerFlag {
         IoError = 0x0,
         FormatError = 0x1,
-        FlightNotAssignedError = 0x2,
-        IncompatibleAssignmentError = 0x4,
-        FlightOverlapError = 0x8
+        SubtourExistenceError = 0x2,
+        MultipleVisitError = 0x4,
+        LoadDeliveryError = 0x8,
+        QuantityReasonabilityError = 0x16
     };
 
     checkerObj = System::exec("Checker.exe " + env.instPath + " " + env.solutionPathWithTime());
-    if (checkerObj > 0) { return true; }
-    checkerObj = ~checkerObj;
-    if (checkerObj == CheckerFlag::IoError) { Log(LogSwitch::Checker) << "IoError." << endl; }
-    if (checkerObj & CheckerFlag::FormatError) { Log(LogSwitch::Checker) << "FormatError." << endl; }
-    if (checkerObj & CheckerFlag::FlightNotAssignedError) { Log(LogSwitch::Checker) << "FlightNotAssignedError." << endl; }
-    if (checkerObj & CheckerFlag::IncompatibleAssignmentError) { Log(LogSwitch::Checker) << "IncompatibleAssignmentError." << endl; }
-    if (checkerObj & CheckerFlag::FlightOverlapError) { Log(LogSwitch::Checker) << "FlightOverlapError." << endl; }
+    if (checkerObj > 0) {
+        checkerObj = (double)checkerObj / 1000;
+        return true;
+    }
+    int errorCode = (int)checkerObj / 1000;
+    errorCode = ~errorCode;
+    if (errorCode == CheckerFlag::IoError) { Log(LogSwitch::Checker) << "IoError." << endl; }
+    if (errorCode & CheckerFlag::FormatError) { Log(LogSwitch::Checker) << "FormatError." << endl; }
+    if (errorCode & CheckerFlag::SubtourExistenceError) { Log(LogSwitch::Checker) << "SubtourExistenceError." << endl; }
+    if (errorCode & CheckerFlag::MultipleVisitError) { Log(LogSwitch::Checker) << "MultipleVisitError." << endl; }
+    if (errorCode & CheckerFlag::LoadDeliveryError) { Log(LogSwitch::Checker) << "LoadDeliveryError." << endl; }
+    if (errorCode & CheckerFlag::QuantityReasonabilityError) { Log(LogSwitch::Checker) << "QuantityReasonabilityError." << endl; }
+    checkerObj = errorCode;
     return false;
     #else
     checkerObj = 0;
     return true;
-    #endif // SZX_DEBUG
+    #endif // QYM_DEBUG
 }
 
 void Solver::init() {
-    aux.isCompatible.resize(input.flights().size(), List<bool>(input.airport().gates().size(), true));
+    aux.routingCost.resize(input.nodes_size(), List<double>(input.nodes_size(), 0));
     ID f = 0;
-    for (auto flight = input.flights().begin(); flight != input.flights().end(); ++flight, ++f) {
-        for (auto ig = flight->incompatiblegates().begin(); ig != flight->incompatiblegates().end(); ++ig) {
-            aux.isCompatible[f][*ig] = false;
+    for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
+        for (auto j = input.nodes().begin(); j != input.nodes().end(); ++j) {
+            if (i->id() == j->id()) { continue; }
+            double value = 0;
+            value = sqrt(pow(i->x() - j->x(), 2) + pow(i->y() - j->y(), 2));
+            value = round(value);
+            aux.routingCost[i->id()][j->id()] = value;
         }
     }
 }
@@ -268,24 +278,53 @@ void Solver::init() {
 bool Solver::optimize(Solution &sln, ID workerId) {
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " starts." << endl;
 
-    ID gateNum = input.airport().gates().size();
-    ID bridgeNum = input.airport().bridgenum();
-    ID flightNum = input.flights().size();
+    ID nodeNum = input.nodes_size();
+    ID vehicleNum = input.vehicles_size();
+    const auto &vehicles(*input.mutable_vehicles());
+    const auto &nodes(*input.mutable_nodes());
 
     // reset solution state.
     bool status = true;
-    auto &assignments(*sln.mutable_assignments());
-    assignments.Resize(flightNum, Problem::InvalidId);
-    sln.flightNumOnBridge = 0;
+    auto &allRoutes(*sln.mutable_allroutes());
 
-
-    // TODO[0]: replace the following random assignment with your own algorithm.
-    for (ID f = 0; !timer.isTimeOut() && (f < flightNum); ++f) {
-        assignments[f] = rand.pick(gateNum);
-        if (assignments[f] < bridgeNum) { ++sln.flightNumOnBridge; } // record obj.
+    sln.totalCost = 0;
+    List<int> restQuantity(nodeNum, 0);
+    for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
+        restQuantity[i->id()] = i->initquantity();
+        sln.totalCost += i->holidingcost() * restQuantity[i->id()];
     }
 
+    // TODO[0]: replace the following random assignment with your own algorithm.
+    for (ID p = 0; p < input.periodnum(); ++p) {
+        auto &routeInPeriod(*allRoutes.Add());
+        for (auto v = vehicles.begin(); v != vehicles.end(); ++v) {
+            auto &route(*routeInPeriod.add_routes());
 
+            int visitedCustomerNum = rand.pick(nodeNum);
+            if (visitedCustomerNum == 0) { continue; }
+            int maxQuantity = v->capacity();
+            int preNode = 0;
+            for (int i = 0; i < visitedCustomerNum; ++i) {
+                auto &delivery(*route.add_deliveries());
+                delivery.set_node(rand.pick(1, nodeNum));
+                delivery.set_quantity(rand.pick(maxQuantity + 1));
+                maxQuantity -= delivery.quantity();
+                restQuantity[delivery.node()] += delivery.quantity();
+                sln.totalCost += aux.routingCost[preNode][delivery.node()];
+                preNode = delivery.node();
+            }
+            auto &delivery(*route.add_deliveries());
+            delivery.set_node(0);
+            delivery.set_quantity(-(v->capacity() - maxQuantity));
+            restQuantity[0] += delivery.quantity();
+            sln.totalCost += aux.routingCost[preNode][0];
+        }
+        for (auto i = nodes.begin(); i != nodes.end(); ++i) {
+            restQuantity[i->id()] -= i->unitdemand();
+            sln.totalCost += restQuantity[i->id()] * i->holidingcost();
+        }
+    }
+        
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
     return status;
 }

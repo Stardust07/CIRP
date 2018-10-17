@@ -4,17 +4,48 @@
 
 给每架航班分配一个停机位, 要求在满足航班与停机位的兼容性以及同一停机位上最短过站时间间隔的情况下, 使停靠在近机位 (靠桥) 的航班尽可能多.
 
+每个周期
+
+要求每个客户不断供的情况下，配送方案，使得库存维护开销和路由开销的总和最小.
+
 
 ## 已知
 
-- 停机位
-  - 是否为近机位
+- 车辆
+  - 容量
   - 最短过站时间间隔
-- 航班
-  - 进港时间
-  - 离港时间
-  - 不兼容的停机位
+- 仓库
+  - 单位开销
+  - 容量
+  - 初始库存
+  - 每周期补充库存
+- 客户
+  - 单位开销
+  - 容量
+  - 初始库存
+  - 每周期消耗库存
 
+### 集合
+
+| Symbol | Description  | Remark              |
+| ------ | ------------ | ------------------- |
+| $V$    | vehicle set  |                     |
+| $T$    | period set   | ${0,1,...}$         |
+| $N$    | node set     | $0$ is the supplier |
+| $N^*$  | customer set | $N^*=N-\{0\}$       |
+
+### 常量
+
+| Symbol     | Description                                              |
+| ---------- | -------------------------------------------------------- |
+| $H_i$      | unit inventory holding cost for node $i$                 |
+| $C_{ij}$   | routing cost for edge $(i, j)$                           |
+| $Q^C_i$    | inventory holding capacity for customer $i$              |
+| $Q^V_v$    | capacity of vehicle $v$                                  |
+| $U^C_{ti}$ | cumulative consumption until period $t$ for customer $i$ |
+| $U^S_t$    | cumulative supplement until period $t$ for the supplier  |
+| $I^C_i$    | initial quantity for customer $i$                        |
+| $I^S$      | initial quantity for the supplier                        |
 
 ## 约束
 
@@ -26,10 +57,9 @@
 
 停靠在近机位的航班数.
 
-
 ## 决策
 
-每架航班停靠在哪个停机位.
+每个客户送多少货
 
 
 
