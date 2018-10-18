@@ -45,7 +45,7 @@ message Vehicle { // 车辆信息
 }
 
 message Route { // 车辆配送路线信息.
-  repeated Delivery deliveries = 2; // 访问节点列表.
+  repeated Delivery deliveries = 2; // 访问节点列表.(仓库只在列表中出现一次，作为路线的终点).
 }
 
 message RoutesInPeriod { // 每个周期所有车辆的路线信息.
