@@ -313,6 +313,8 @@ bool Solver::optimize(Solution &sln, ID workerId) {
                 sln.totalCost += aux.routingCost[preNode][delivery.node()];
                 preNode = delivery.node();
             }
+
+            // 仓库只在列表中出现一次，作为路线的终点.
             auto &delivery(*route.add_deliveries());
             delivery.set_node(0);
             delivery.set_quantity(-(v->capacity() - maxQuantity));
