@@ -517,5 +517,8 @@
    "unitDemand": 40,
    "holidingCost": 0.36
   }
- ]
+ ],
+ "bestObj": 29768.03,
+ "referenceObj": 29768.03,
+ "referenceTime": 1800
 }

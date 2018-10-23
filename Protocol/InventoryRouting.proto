@@ -21,6 +21,9 @@ message InventoryRouting { // 求解算法输入输出数据接口.
     int32 periodNum = 1; // 周期数目
     repeated Vehicle vehicles = 2; // 车辆列表.
     repeated Node nodes = 3; // 节点列表.
+    double bestObj = 4; // 最优解.
+    double referenceObj = 5; // 论文中的最优解.
+    double referenceTime = 6; // 论文中的求解时间(s).
   }
 
   message Output { // 求解结果输出数据.

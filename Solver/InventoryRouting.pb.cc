@@ -228,6 +228,9 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, periodnum_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, vehicles_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, nodes_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, bestobj_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, referenceobj_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Input, referencetime_),
   ~0u,  // no _has_bits_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Output, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -300,14 +303,14 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
 };
 static const ::google::protobuf::internal::MigrationSchema schemas[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::pb::InventoryRouting_Input)},
-  { 8, -1, sizeof(::pb::InventoryRouting_Output)},
-  { 14, -1, sizeof(::pb::InventoryRouting)},
-  { 19, -1, sizeof(::pb::Node)},
-  { 32, -1, sizeof(::pb::Vehicle)},
-  { 39, -1, sizeof(::pb::Route)},
-  { 45, -1, sizeof(::pb::RoutesInPeriod)},
-  { 51, -1, sizeof(::pb::Delivery)},
-  { 58, -1, sizeof(::pb::Submission)},
+  { 11, -1, sizeof(::pb::InventoryRouting_Output)},
+  { 17, -1, sizeof(::pb::InventoryRouting)},
+  { 22, -1, sizeof(::pb::Node)},
+  { 35, -1, sizeof(::pb::Vehicle)},
+  { 42, -1, sizeof(::pb::Route)},
+  { 48, -1, sizeof(::pb::RoutesInPeriod)},
+  { 54, -1, sizeof(::pb::Delivery)},
+  { 61, -1, sizeof(::pb::Submission)},
 };
 
 static ::google::protobuf::Message const * const file_default_instances[] = {
@@ -343,29 +346,30 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void AddDescriptorsImpl() {
   InitDefaults();
   static const char descriptor[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
-      "\n\026InventoryRouting.proto\022\002pb\"\227\001\n\020Invento"
-      "ryRouting\032R\n\005Input\022\021\n\tperiodNum\030\001 \001(\005\022\035\n"
-      "\010vehicles\030\002 \003(\0132\013.pb.Vehicle\022\027\n\005nodes\030\003 "
-      "\003(\0132\010.pb.Node\032/\n\006Output\022%\n\tallRoutes\030\001 \003"
-      "(\0132\022.pb.RoutesInPeriod\"\214\001\n\004Node\022\n\n\002id\030\001 "
-      "\001(\005\022\t\n\001x\030\002 \001(\001\022\t\n\001y\030\003 \001(\001\022\024\n\014initQuantit"
-      "y\030\004 \001(\005\022\020\n\010capacity\030\005 \001(\005\022\020\n\010minLevel\030\006 "
-      "\001(\005\022\022\n\nunitDemand\030\007 \001(\005\022\024\n\014holidingCost\030"
-      "\010 \001(\001\"\'\n\007Vehicle\022\n\n\002id\030\001 \001(\005\022\020\n\010capacity"
-      "\030\002 \001(\005\")\n\005Route\022 \n\ndeliveries\030\002 \003(\0132\014.pb"
-      ".Delivery\"+\n\016RoutesInPeriod\022\031\n\006routes\030\001 "
-      "\003(\0132\t.pb.Route\"*\n\010Delivery\022\014\n\004node\030\001 \001(\005"
-      "\022\020\n\010quantity\030\002 \001(\005\"\350\001\n\nSubmission\022\016\n\006aut"
-      "hor\030\001 \001(\t\022\021\n\talgorithm\030\002 \001(\t\022\016\n\006thread\030\003"
-      " \001(\t\022\013\n\003cpu\030\004 \001(\t\022\013\n\003ram\030\005 \001(\t\022\020\n\010langua"
-      "ge\030\006 \001(\t\022\020\n\010compiler\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017"
-      "\n\007problem\030\025 \001(\t\022\020\n\010instance\030\026 \001(\t\022\020\n\010dur"
-      "ation\030\027 \001(\t\022\013\n\003obj\030\037 \001(\001\022\r\n\005email\030  \001(\t\022"
-      "\014\n\004date\030! \001(\tB\026\n\002pbB\020InventoryRoutingb\006p"
-      "roto3"
+      "\n\026InventoryRouting.proto\022\002pb\"\326\001\n\020Invento"
+      "ryRouting\032\220\001\n\005Input\022\021\n\tperiodNum\030\001 \001(\005\022\035"
+      "\n\010vehicles\030\002 \003(\0132\013.pb.Vehicle\022\027\n\005nodes\030\003"
+      " \003(\0132\010.pb.Node\022\017\n\007bestObj\030\004 \001(\001\022\024\n\014refer"
+      "enceObj\030\005 \001(\001\022\025\n\rreferenceTime\030\006 \001(\001\032/\n\006"
+      "Output\022%\n\tallRoutes\030\001 \003(\0132\022.pb.RoutesInP"
+      "eriod\"\214\001\n\004Node\022\n\n\002id\030\001 \001(\005\022\t\n\001x\030\002 \001(\001\022\t\n"
+      "\001y\030\003 \001(\001\022\024\n\014initQuantity\030\004 \001(\005\022\020\n\010capaci"
+      "ty\030\005 \001(\005\022\020\n\010minLevel\030\006 \001(\005\022\022\n\nunitDemand"
+      "\030\007 \001(\005\022\024\n\014holidingCost\030\010 \001(\001\"\'\n\007Vehicle\022"
+      "\n\n\002id\030\001 \001(\005\022\020\n\010capacity\030\002 \001(\005\")\n\005Route\022 "
+      "\n\ndeliveries\030\002 \003(\0132\014.pb.Delivery\"+\n\016Rout"
+      "esInPeriod\022\031\n\006routes\030\001 \003(\0132\t.pb.Route\"*\n"
+      "\010Delivery\022\014\n\004node\030\001 \001(\005\022\020\n\010quantity\030\002 \001("
+      "\005\"\350\001\n\nSubmission\022\016\n\006author\030\001 \001(\t\022\021\n\talgo"
+      "rithm\030\002 \001(\t\022\016\n\006thread\030\003 \001(\t\022\013\n\003cpu\030\004 \001(\t"
+      "\022\013\n\003ram\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\020\n\010compi"
+      "ler\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017\n\007problem\030\025 \001(\t\022\020"
+      "\n\010instance\030\026 \001(\t\022\020\n\010duration\030\027 \001(\t\022\013\n\003ob"
+      "j\030\037 \001(\001\022\r\n\005email\030  \001(\t\022\014\n\004date\030! \001(\tB\026\n\002"
+      "pbB\020InventoryRoutingb\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 765);
+      descriptor, 828);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "InventoryRouting.proto", &protobuf_RegisterTypes);
 }
@@ -391,6 +395,9 @@ void InventoryRouting_Input::InitAsDefaultInstance() {
 const int InventoryRouting_Input::kPeriodNumFieldNumber;
 const int InventoryRouting_Input::kVehiclesFieldNumber;
 const int InventoryRouting_Input::kNodesFieldNumber;
+const int InventoryRouting_Input::kBestObjFieldNumber;
+const int InventoryRouting_Input::kReferenceObjFieldNumber;
+const int InventoryRouting_Input::kReferenceTimeFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 InventoryRouting_Input::InventoryRouting_Input()
@@ -406,12 +413,16 @@ InventoryRouting_Input::InventoryRouting_Input(const InventoryRouting_Input& fro
       vehicles_(from.vehicles_),
       nodes_(from.nodes_) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
-  periodnum_ = from.periodnum_;
+  ::memcpy(&bestobj_, &from.bestobj_,
+    static_cast<size_t>(reinterpret_cast<char*>(&periodnum_) -
+    reinterpret_cast<char*>(&bestobj_)) + sizeof(periodnum_));
   // @@protoc_insertion_point(copy_constructor:pb.InventoryRouting.Input)
 }
 
 void InventoryRouting_Input::SharedCtor() {
-  periodnum_ = 0;
+  ::memset(&bestobj_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&periodnum_) -
+      reinterpret_cast<char*>(&bestobj_)) + sizeof(periodnum_));
 }
 
 InventoryRouting_Input::~InventoryRouting_Input() {
@@ -444,7 +455,9 @@ void InventoryRouting_Input::Clear() {
 
   vehicles_.Clear();
   nodes_.Clear();
-  periodnum_ = 0;
+  ::memset(&bestobj_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&periodnum_) -
+      reinterpret_cast<char*>(&bestobj_)) + sizeof(periodnum_));
   _internal_metadata_.Clear();
 }
 
@@ -490,6 +503,48 @@ bool InventoryRouting_Input::MergePartialFromCodedStream(
             static_cast< ::google::protobuf::uint8>(26u /* 26 & 0xFF */)) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadMessage(
                 input, add_nodes()));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // double bestObj = 4;
+      case 4: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(33u /* 33 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &bestobj_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // double referenceObj = 5;
+      case 5: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(41u /* 41 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &referenceobj_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // double referenceTime = 6;
+      case 6: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(49u /* 49 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &referencetime_)));
         } else {
           goto handle_unusual;
         }
@@ -545,6 +600,21 @@ void InventoryRouting_Input::SerializeWithCachedSizes(
       output);
   }
 
+  // double bestObj = 4;
+  if (this->bestobj() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(4, this->bestobj(), output);
+  }
+
+  // double referenceObj = 5;
+  if (this->referenceobj() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(5, this->referenceobj(), output);
+  }
+
+  // double referenceTime = 6;
+  if (this->referencetime() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(6, this->referencetime(), output);
+  }
+
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), output);
@@ -578,6 +648,21 @@ void InventoryRouting_Input::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageToArray(
         3, this->nodes(static_cast<int>(i)), deterministic, target);
+  }
+
+  // double bestObj = 4;
+  if (this->bestobj() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(4, this->bestobj(), target);
+  }
+
+  // double referenceObj = 5;
+  if (this->referenceobj() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(5, this->referenceobj(), target);
+  }
+
+  // double referenceTime = 6;
+  if (this->referencetime() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(6, this->referencetime(), target);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -619,6 +704,21 @@ size_t InventoryRouting_Input::ByteSizeLong() const {
     }
   }
 
+  // double bestObj = 4;
+  if (this->bestobj() != 0) {
+    total_size += 1 + 8;
+  }
+
+  // double referenceObj = 5;
+  if (this->referenceobj() != 0) {
+    total_size += 1 + 8;
+  }
+
+  // double referenceTime = 6;
+  if (this->referencetime() != 0) {
+    total_size += 1 + 8;
+  }
+
   // int32 periodNum = 1;
   if (this->periodnum() != 0) {
     total_size += 1 +
@@ -655,6 +755,15 @@ void InventoryRouting_Input::MergeFrom(const InventoryRouting_Input& from) {
 
   vehicles_.MergeFrom(from.vehicles_);
   nodes_.MergeFrom(from.nodes_);
+  if (from.bestobj() != 0) {
+    set_bestobj(from.bestobj());
+  }
+  if (from.referenceobj() != 0) {
+    set_referenceobj(from.referenceobj());
+  }
+  if (from.referencetime() != 0) {
+    set_referencetime(from.referencetime());
+  }
   if (from.periodnum() != 0) {
     set_periodnum(from.periodnum());
   }
@@ -686,6 +795,9 @@ void InventoryRouting_Input::InternalSwap(InventoryRouting_Input* other) {
   using std::swap;
   CastToBase(&vehicles_)->InternalSwap(CastToBase(&other->vehicles_));
   CastToBase(&nodes_)->InternalSwap(CastToBase(&other->nodes_));
+  swap(bestobj_, other->bestobj_);
+  swap(referenceobj_, other->referenceobj_);
+  swap(referencetime_, other->referencetime_);
   swap(periodnum_, other->periodnum_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
 }

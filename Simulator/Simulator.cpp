@@ -168,6 +168,7 @@ void Simulator::parallelBenchmark(int repeat) {
 }
 
 void Simulator::generateInstance(const InstanceTrait &trait) {
+    importBenchmarksFromCsv();
     convertAllInstancesToPb();
 }
 
@@ -176,6 +177,12 @@ void Simulator::convertInstanceToPb(const String & fileName) {
     if (!ifs.is_open()) { return; }
 
     Problem::Input input;
+    String instanceName(fileName);
+    instanceName = instanceName.substr(instanceName.find_first_of('_') + 1);
+    cout << instanceName;
+    input.set_bestobj(benchmarks[instanceName][0]);
+    input.set_referenceobj(benchmarks[instanceName][1]);
+    input.set_referencetime(benchmarks[instanceName][2]);
 
     int nodeNum, periodNum, vehicleCapacity;
     ifs >> nodeNum >> periodNum >> vehicleCapacity;
@@ -273,6 +280,40 @@ void Simulator::convertAllInstancesToPb() {
         //if (fileExists(InstanceDir() + "Pb/Instances_" + instanceName[i] + ".json")) { continue; }
         convertInstanceToPb("Instances_" + instanceName[i]);
     }
+}
+
+bool Simulator::importBenchmarksFromCsv() {
+    String instanceSets[] = { "lowcost_H3","lowcost_H6","highcost_H3","highcost_H6","large_lowcost","large_highcost" };
+
+    for (int i = 0; i < 6; ++i) {
+        ostringstream path;
+        path << InstanceDir() << instanceSets[i] << ".csv";
+        ifstream ifs(path.str());
+
+        if (!ifs.is_open()) { return false; }
+
+        String buf;
+        ifs >> buf;
+        while (!buf.empty()) {
+            istringstream iss;
+            int index = buf.find_first_of(',');
+            String instanceName = buf.substr(0, index);
+            double bestObj, referenceObj, referenceTime;
+            iss.str(buf.substr(index + 1, buf.find_first_of(',', index + 1)));
+            iss >> bestObj;
+            index = buf.find_first_of(',', index + 1);
+            iss.str(buf.substr(index + 1, buf.find_first_of(',', index + 1)));
+            iss >> referenceObj;
+            index = buf.find_first_of(',', index + 1);
+            iss.str(buf.substr(index + 1));
+            iss >> referenceTime;
+            benchmarks[instanceSets[i] + "/" + instanceName] = { round(bestObj * 100) / 100, round(referenceObj * 100) / 100, referenceTime };
+            buf.clear();
+            ifs >> buf;
+        }
+    }
+    
+    return true;
 }
 
 }

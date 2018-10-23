@@ -81,6 +81,7 @@ public:
     }
     void convertInstanceToPb(const String &filePath);
     void convertAllInstancesToPb();
+    bool importBenchmarksFromCsv();
 
 private:
     void setNodeInformation(pb::Node &node, int id, double x, double y, 
@@ -98,6 +99,7 @@ private:
 
     #pragma region Field
 public:
+    Map<String, List<double>> benchmarks;
     #pragma endregion Field
 };
 

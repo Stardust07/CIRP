@@ -202,6 +202,24 @@ class InventoryRouting_Input : public ::google::protobuf::Message /* @@protoc_in
   const ::google::protobuf::RepeatedPtrField< ::pb::Node >&
       nodes() const;
 
+  // double bestObj = 4;
+  void clear_bestobj();
+  static const int kBestObjFieldNumber = 4;
+  double bestobj() const;
+  void set_bestobj(double value);
+
+  // double referenceObj = 5;
+  void clear_referenceobj();
+  static const int kReferenceObjFieldNumber = 5;
+  double referenceobj() const;
+  void set_referenceobj(double value);
+
+  // double referenceTime = 6;
+  void clear_referencetime();
+  static const int kReferenceTimeFieldNumber = 6;
+  double referencetime() const;
+  void set_referencetime(double value);
+
   // int32 periodNum = 1;
   void clear_periodnum();
   static const int kPeriodNumFieldNumber = 1;
@@ -214,6 +232,9 @@ class InventoryRouting_Input : public ::google::protobuf::Message /* @@protoc_in
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::RepeatedPtrField< ::pb::Vehicle > vehicles_;
   ::google::protobuf::RepeatedPtrField< ::pb::Node > nodes_;
+  double bestobj_;
+  double referenceobj_;
+  double referencetime_;
   ::google::protobuf::int32 periodnum_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_InventoryRouting_2eproto::TableStruct;
@@ -1397,6 +1418,48 @@ inline const ::google::protobuf::RepeatedPtrField< ::pb::Node >&
 InventoryRouting_Input::nodes() const {
   // @@protoc_insertion_point(field_list:pb.InventoryRouting.Input.nodes)
   return nodes_;
+}
+
+// double bestObj = 4;
+inline void InventoryRouting_Input::clear_bestobj() {
+  bestobj_ = 0;
+}
+inline double InventoryRouting_Input::bestobj() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Input.bestObj)
+  return bestobj_;
+}
+inline void InventoryRouting_Input::set_bestobj(double value) {
+  
+  bestobj_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Input.bestObj)
+}
+
+// double referenceObj = 5;
+inline void InventoryRouting_Input::clear_referenceobj() {
+  referenceobj_ = 0;
+}
+inline double InventoryRouting_Input::referenceobj() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Input.referenceObj)
+  return referenceobj_;
+}
+inline void InventoryRouting_Input::set_referenceobj(double value) {
+  
+  referenceobj_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Input.referenceObj)
+}
+
+// double referenceTime = 6;
+inline void InventoryRouting_Input::clear_referencetime() {
+  referencetime_ = 0;
+}
+inline double InventoryRouting_Input::referencetime() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Input.referenceTime)
+  return referencetime_;
+}
+inline void InventoryRouting_Input::set_referencetime(double value) {
+  
+  referencetime_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Input.referenceTime)
 }
 
 // -------------------------------------------------------------------
