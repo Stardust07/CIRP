@@ -21,8 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{6F05DAC1-4FEF-4D11-B177-4FB26A217AE8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>Simulator</RootNamespace>
-  </PropertyGroup>
+    <RootNamespace>Simulator</RootNamespace>  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -107,14 +106,14 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)Lib\protobuf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Lib\protobuf\include;$(SolutionDir)Lib\gurobi\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Lib\protobuf\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libprotobufd.lib;libprotocd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\protobuf\lib;$(SolutionDir)Lib\gurobi\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libprotobufd.lib;libprotocd.lib;gurobi_c++mtd2017.lib;gurobi75.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(SolutionDir)Deploy\$(TargetFileName)"</Command>
@@ -153,7 +152,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)Lib\protobuf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Lib\protobuf\include;$(SolutionDir)Lib\gurobi\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -161,8 +160,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Lib\protobuf\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libprotobuf.lib;libprotoc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\protobuf\lib;$(SolutionDir)Lib\gurobi\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libprotobuf.lib;libprotoc.lib;gurobi_c++mt2017.lib;gurobi75.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(TargetPath)" "$(SolutionDir)Deploy\$(TargetFileName)"</Command>
@@ -173,7 +172,9 @@
     <ClInclude Include="..\Solver\Config.h" />
     <ClInclude Include="..\Solver\CsvReader.h" />
     <ClInclude Include="..\Solver\InventoryRouting.pb.h" />
+    <ClInclude Include="..\Solver\IrpModel.h" />
     <ClInclude Include="..\Solver\LogSwitch.h" />
+    <ClInclude Include="..\Solver\MpSolverGurobi.h" />
     <ClInclude Include="..\Solver\PbReader.h" />
     <ClInclude Include="..\Solver\Problem.h" />
     <ClInclude Include="..\Solver\Solver.h" />
@@ -184,6 +185,8 @@
   <ItemGroup>
     <ClCompile Include="..\Solver\CsvReader.cpp" />
     <ClCompile Include="..\Solver\InventoryRouting.pb.cc" />
+    <ClCompile Include="..\Solver\IrpModel.cpp" />
+    <ClCompile Include="..\Solver\MpSolverGurobi.cpp" />
     <ClCompile Include="..\Solver\Solver.cpp" />
     <ClCompile Include="..\Solver\Utility.cpp" />
     <ClCompile Include="Main.cpp" />

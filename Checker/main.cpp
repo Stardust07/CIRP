@@ -32,14 +32,16 @@ int main(int argc, char *argv[]) {
         inputPath = argv[1];
     } else {
         cerr << "input path: " << flush;
-        cin >> inputPath;
+        //cin >> inputPath;
+        inputPath = "Instance/Instances_lowcost_H3/abs2n5.json";
     }
 
     if (argc > 2) {
         outputPath = argv[2];
     } else {
         cerr << "output path: " << flush;
-        cin >> outputPath;
+        //cin >> outputPath;
+        outputPath = "Solution/Instances_lowcost_H3/abs2n5.json";
     }
 
     pb::InventoryRouting::Input input;

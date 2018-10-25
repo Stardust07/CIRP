@@ -19,6 +19,9 @@
     <Filter Include="Protocol">
       <UniqueIdentifier>{8d2f103b-4d4e-4307-a086-40fe56bbeb04}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MpSolver">
+      <UniqueIdentifier>{6d57a9fe-a4a1-4540-b74e-db5068956b41}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Config.h">
@@ -48,6 +51,12 @@
     <ClInclude Include="InventoryRouting.pb.h">
       <Filter>Protocol</Filter>
     </ClInclude>
+    <ClInclude Include="MpSolverGurobi.h">
+      <Filter>MpSolver</Filter>
+    </ClInclude>
+    <ClInclude Include="IrpModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -64,6 +73,12 @@
     </ClCompile>
     <ClCompile Include="InventoryRouting.pb.cc">
       <Filter>Protocol</Filter>
+    </ClCompile>
+    <ClCompile Include="MpSolverGurobi.cpp">
+      <Filter>MpSolver</Filter>
+    </ClCompile>
+    <ClCompile Include="IrpModel.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -156,8 +156,8 @@ void Solver::Configuration::save(const String &filePath) const {
 bool Solver::solve() {
     init();
 
-    int workerNum = (max)(1, env.jobNum / cfg.threadNumPerWorker);
-    cfg.threadNumPerWorker = env.jobNum / workerNum;
+    int workerNum = 1;//(max)(1, env.jobNum / cfg.threadNumPerWorker);
+    cfg.threadNumPerWorker = 4;//env.jobNum / workerNum;
     List<Solution> solutions(workerNum, Solution(this));
     List<bool> success(workerNum);
 
@@ -267,7 +267,6 @@ bool Solver::check(double &checkerObj) const {
 
 void Solver::init() {
     aux.routingCost.resize(input.nodes_size(), List<double>(input.nodes_size(), 0));
-    ID f = 0;
     for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
         for (auto j = input.nodes().begin(); j != input.nodes().end(); ++j) {
             if (i->id() == j->id()) { continue; }
@@ -289,50 +288,186 @@ bool Solver::optimize(Solution &sln, ID workerId) {
 
     // reset solution state.
     bool status = true;
-    auto &allRoutes(*sln.mutable_allroutes());
 
     sln.totalCost = 0;
-    List<int> restQuantity(nodeNum, 0);
-    for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
-        restQuantity[i->id()] = i->initquantity();
-        sln.totalCost += i->holidingcost() * restQuantity[i->id()];
-    }
 
     // TODO[0]: replace the following random assignment with your own algorithm.
-    for (ID p = 0; p < input.periodnum(); ++p) {
-        auto &routeInPeriod(*allRoutes.Add());
-        for (auto v = vehicles.begin(); v != vehicles.end(); ++v) {
-            auto &route(*routeInPeriod.add_routes());
+    solveWithCompleteModel(sln, true);
+    //solveWithRelaxedInit(sln);
+    //solveWithDecomposition(sln);
 
-            int visitedCustomerNum = rand.pick(nodeNum);
-            if (visitedCustomerNum == 0) { continue; }
-            int maxQuantity = v->capacity();
-            int preNode = 0;
-            for (int i = 0; i < visitedCustomerNum; ++i) {
-                auto &delivery(*route.add_deliveries());
-                delivery.set_node(rand.pick(1, nodeNum));
-                delivery.set_quantity(rand.pick(maxQuantity + 1));
-                maxQuantity -= delivery.quantity();
-                restQuantity[delivery.node()] += delivery.quantity();
-                sln.totalCost += aux.routingCost[preNode][delivery.node()];
-                preNode = delivery.node();
-            }
-
-            // 仓库只在列表中出现一次，作为路线的终点.
-            auto &delivery(*route.add_deliveries());
-            delivery.set_node(0);
-            delivery.set_quantity(-(v->capacity() - maxQuantity));
-            restQuantity[0] += delivery.quantity();
-            sln.totalCost += aux.routingCost[preNode][0];
-        }
-        for (auto i = nodes.begin(); i != nodes.end(); ++i) {
-            restQuantity[i->id()] -= i->unitdemand();
-            sln.totalCost += restQuantity[i->id()] * i->holidingcost();
-        }
-    }
-        
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
     return status;
+}
+bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
+    IrpModelSolver modelSolver;
+    if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
+
+    //IrpModelSolver::Input &modelInput(modelSolver.input);
+    //modelInput.nodeNum = input.nodes_size();
+    //modelInput.periodNum = input.periodnum();
+    //modelInput.vehicleNum = input.vehicles_size();
+    //modelInput.bestObjective = input.bestobj();
+    //modelInput.referenceObjective = input.referenceobj();
+
+    //modelInput.nodes.resize(modelInput.nodeNum);
+    //for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
+    //    //modelInput.nodes[i->id()].xPoint = i->x();
+    //    //modelInput.nodes[i->id()].yPoint = i->y();
+    //    modelInput.nodes[i->id()].initialQuantity = i->initquantity();
+    //    modelInput.nodes[i->id()].capacity = i->capacity();
+    //    modelInput.nodes[i->id()].minLevel = i->minlevel();
+    //    modelInput.nodes[i->id()].unitDemand = i->unitdemand();
+    //    modelInput.nodes[i->id()].holdingCost = i->holidingcost();
+    //}
+    //modelInput.nodes[0].unitDemand = -modelInput.nodes[0].unitDemand;
+    //modelInput.vehicleCapacity = input.vehicles()[0].capacity();
+    convertToModelInput(modelSolver.input, input);
+    modelSolver.routingCost = aux.routingCost;
+
+    if (!modelSolver.solve()) { return false; }
+
+    // record solution.
+    sln.totalCost = modelSolver.getObjValue();
+    auto &allRoutes(*sln.mutable_allroutes());
+    const IrpModelSolver::PresetX &presetX(modelSolver.presetX);
+    for (ID p = 0; p < input.periodnum(); ++p) {
+        auto &routeInPeriod(*allRoutes.Add());
+        for (ID v = 0; v != input.vehicles_size(); ++v) {
+            auto &route(*routeInPeriod.add_routes());
+            // TODO[qym][5]:
+            if (!presetX.xEdge[v][p].empty()) {
+                ID i = 0;
+                for (ID j = 0; j < input.nodes_size(); ++j) {
+                    if (i == j) { continue; }
+                    if (!presetX.xEdge[v][p][i][j]) { continue; }
+                    auto &delivery(*route.add_deliveries());
+                    delivery.set_node(j);
+                    delivery.set_quantity(lround(presetX.xQuantity[v][p][j]));
+
+                    if (j == 0) {
+                        delivery.set_quantity(-lround(presetX.xQuantity[v][p][j]));
+                        break;
+                    }
+                    i = j;
+                    j = -1;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
+    const int ReduceModelScaleIteration = 3;
+    const int RandModelScaleIteration = 6;
+    const int DefaultMoveCount = 2 - (rand() % 2);
+    const int DefaultTimeLimitPerIteration = 600;
+    const int DefaultTimeLimitSecond = IrpModelSolver::DefaultTimeLimitSecond;
+
+    vector<double> costForPeriod(input.periodnum(), 0);
+    
+    // generate initial solution using slack constraints for customer's min level.
+    IrpModelSolver initSolver;
+    convertToModelInput(initSolver.input, input);
+    initSolver.routingCost = aux.routingCost;
+    initSolver.enableRelaxMinLevel();
+    
+    if (!initSolver.solve()) { return false; }
+    double bestObj = initSolver.getObjValue();
+    costForPeriod = initSolver.sln.costForPeriod;
+
+    // initialize tabu table.
+    vector<int> tabuTable(input.periodnum(), -1);
+    for (int i = (input.periodnum() + 1) / 2; i < input.periodnum(); ++i) {
+        tabuTable[i] = tabuTable[i - 1] + 1;
+    }
+
+    int iter = 0;
+    int iterNoImprove = 0;
+    int timeLimitPerIteration = DefaultTimeLimitPerIteration;
+    int moveCount = DefaultMoveCount;  // select moveCount periods to reoptimize per iteration.
+    double secondsUntilOpt = initSolver.getDurationInSecond(); // elapsed seconds when the best solution was found.
+    double totalSeconds = secondsUntilOpt; // total elapsed seconds.
+
+    IrpModelSolver::PresetX presetX(move(initSolver.presetX));
+    // reoptimize with initial solution
+    while (totalSeconds < DefaultTimeLimitSecond && abs(bestObj - input.referenceobj()) > IrpModelSolver::DefaultDoubleGap) {
+        // update 
+        if (iterNoImprove > RandModelScaleIteration) {
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = (rand() % input.periodnum()) + 1;
+        } else if (iterNoImprove > ReduceModelScaleIteration) { // shrink neighborhood in case it is too complex.
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = makeSureInRange(static_cast<int>(rand() % max(input.periodnum() / 3, 1) + 1), 1, moveCount);
+        } else if (iterNoImprove > 0) { // expand neighborhood in case stagnating in local optima.
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.5, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = makeSureInRange(++moveCount, 1, input.periodnum() * 2 / 3);
+        } else {
+            timeLimitPerIteration = min(DefaultTimeLimitPerIteration, DefaultTimeLimitSecond - static_cast<int>(totalSeconds));
+        }
+
+        //IrpModelSolver::saveSolution(initSolver.input, presetX, "../Solution/" + dir + "." + instance.substr(0, instance.find_first_of('.')) + "." + getTightLocalTime() + ".csv");
+        IrpModelSolver solver(initSolver.input);
+        solver.enablePresetSolution();
+        solver.presetX = presetX;
+        solver.setTimeLimitInSecond(timeLimitPerIteration);
+        if (!getFixedPeriods(input.periodnum(), solver.presetX.isPeriodFixed, iter, tabuTable, moveCount)) { break; }
+
+        //cout << "\nFix: ";
+        //double fixedCost = 0;
+        //for (int i = 0; i < input.periodnum(); ++i) {
+        //    if (!solver.presetX.isPeriodFixed[i]) { continue; }
+        //    cout << i << " ";
+        //    fixedCost += costForPeriod[i];
+        //    solver.fixPeriod(i);
+        //}
+        //cout << "\n" << endl;
+
+        if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
+        bool feasibleFound = solver.solve();
+        totalSeconds += solver.getDurationInSecond();
+        ++iter;
+        ++iterNoImprove;
+        if (!feasibleFound) { continue; }
+        if (bestObj - solver.getCostInPeriod(0, input.periodnum()) < IrpModelSolver::DefaultDoubleGap) { continue; }
+
+        iterNoImprove = 0;
+        secondsUntilOpt = totalSeconds;
+        bestObj = solver.getCostInPeriod(0, input.periodnum());
+        cout << "Best: " << bestObj << endl;
+
+        costForPeriod = solver.sln.costForPeriod;
+        presetX = move(solver.presetX);
+    }
+
+    return true;
+}
+
+bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
+    return true;
+}
+
+void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::Input & problem) {
+    model.nodeNum = problem.nodes_size();
+    model.periodNum = problem.periodnum();
+    model.vehicleNum = problem.vehicles_size();
+    model.bestObjective = problem.bestobj();
+    model.referenceObjective = problem.referenceobj();
+
+    model.nodes.resize(model.nodeNum);
+    for (auto i = problem.nodes().begin(); i != problem.nodes().end(); ++i) {
+        //model.nodes[i->id()].xPoint = i->x();
+        //model.nodes[i->id()].yPoint = i->y();
+        model.nodes[i->id()].initialQuantity = i->initquantity();
+        model.nodes[i->id()].capacity = i->capacity();
+        model.nodes[i->id()].minLevel = i->minlevel();
+        model.nodes[i->id()].unitDemand = i->unitdemand();
+        model.nodes[i->id()].holdingCost = i->holidingcost();
+    }
+    model.nodes[0].unitDemand = -model.nodes[0].unitDemand;
+    model.vehicleCapacity = problem.vehicles()[0].capacity();
 }
 #pragma endregion Solver
 
