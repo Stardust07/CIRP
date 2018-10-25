@@ -69,6 +69,7 @@ int Solver::Cli::run(int argc, char * argv[]) {
     submission.set_thread(to_string(env.jobNum));
     submission.set_instance(env.friendlyInstName());
     submission.set_duration(to_string(solver.timer.elapsedSeconds()) + "s");
+    submission.set_obj(solver.output.totalCost);
 
     solver.output.save(env.slnPath, submission);
     #if QYM_DEBUG
@@ -222,7 +223,7 @@ void Solver::record() const {
     ofstream logFile(env.logPath, ios::app);
     logFile.seekp(0, ios::end);
     if (logFile.tellp() <= 0) {
-        logFile << "Time,ID,Instance,Feasible,ObjMatch,Width,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
+        logFile << "Time,ID,Instance,Feasible,ObjMatch,Cost,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
     }
     logFile << log.str();
     logFile.close();

@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
     vector<int> restQuntity(nodeNum, 0);
     for (auto i = nodes.begin(); i != nodes.end(); ++i) {
         restQuntity[i->id()] = i->initquantity();
+        holdingCost += i->holidingcost() * i->initquantity();
     }
     for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
         for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
