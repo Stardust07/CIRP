@@ -206,11 +206,14 @@ void Solver::record() const {
         << env.instPath << ","
         << feasible << "," << (obj - checkerObj) << ","
         << output.totalCost << ","
+        << input.bestobj() << ","
+        << input.referenceobj() << ","
         << timer.elapsedSeconds() << ","
+        << input.referencetime() << ","
         << mu.physicalMemory << "," << mu.virtualMemory << ","
         << env.randSeed << ","
         << cfg.toBriefStr() << ","
-        << generation << "," << iteration ;
+        << generation << "," << iteration;
 
     // record solution vector.
     // EXTEND[qym][2]: save solution in log.
@@ -223,7 +226,7 @@ void Solver::record() const {
     ofstream logFile(env.logPath, ios::app);
     logFile.seekp(0, ios::end);
     if (logFile.tellp() <= 0) {
-        logFile << "Time,ID,Instance,Feasible,ObjMatch,Cost,Duration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
+        logFile << "Time,ID,Instance,Feasible,ObjMatch,Cost,MinCost,RefCost,Duration,RefDuration,PhysMem,VirtMem,RandSeed,Config,Generation,Iteration,Solution" << endl;
     }
     logFile << log.str();
     logFile.close();
