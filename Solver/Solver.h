@@ -205,49 +205,8 @@ protected:
     bool solveWithDecomposition(Solution &sln, bool findFeasibleFirst = false);
 
     void convertToModelInput(IrpModelSolver::Input &model, const Problem::Input &problem);
-    bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount) {
-        const bool resetTabuTable = true;
-
-        int nonTabuCount = 0;
-        for (int t = 0; t < periodNum; ++t) {
-            if (iter > tabuTable[t]) { ++nonTabuCount; }
-        }
-
-        // if and only if 
-        if (nonTabuCount < ((totalMoveCount + 1) / 2)) {
-            if (!resetTabuTable) { return false; }
-            while (nonTabuCount < ((totalMoveCount + 1) / 2)) {
-                // reset tabu table randomly
-                int p = rand() % periodNum;
-                if (iter > tabuTable[p]) { continue; }
-                tabuTable[p] = iter - 1;
-                ++nonTabuCount;
-            }
-        }
-
-        bool feasible = true;
-        do {
-            feasible = true;
-            fill(isPeriodFixed.begin(), isPeriodFixed.end(), true);
-            int tabuMoveCount = 0;
-            int moveCount = 0;
-            while (moveCount < totalMoveCount) {
-                int p = rand() % periodNum;
-                if (!isPeriodFixed[p]) { continue; }
-                ++moveCount;
-                isPeriodFixed[p] = false;
-                if (iter <= tabuTable[p]) { ++tabuMoveCount; }
-                if (tabuMoveCount > totalMoveCount / 2) { feasible = false; break; }
-            }
-        } while (!feasible);
-
-        for (int t = 0; t < periodNum; ++t) {
-            if (isPeriodFixed[t]) { continue; }
-            int tabuLen = 1 + rand() % (periodNum / 2);
-            tabuTable[t] = iter + tabuLen;
-        }
-        return true;
-    }
+    void retrieveOutputFromModel(Problem::Output &sln, const IrpModelSolver::PresetX &presetX);
+    bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
 
     template<typename T>
     static T makeSureInRange(T val, T minVal, T maxVal) {

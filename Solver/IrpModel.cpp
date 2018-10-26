@@ -210,37 +210,37 @@ void IrpModelSolver::retrieveSolution() {
     }
 }
 
-//void IrpModelSolver::saveSolution(const Input &input, const PresetX &presetX, const string &path) {
-//    ofstream ofs(path);
-//
-//    for (ID t = 0; t < input.periodNum; ++t) {
-//        ofs << "period," << t << ",================================" << endl;
-//        for (ID v = 0; v < input.vehicleNum; ++v) {
-//            ostringstream route;
-//            route << v << ",";
-//            ostringstream quant;
-//            quant.precision(2);
-//            quant << ",";
-//
-//            if (!presetX.xEdge[v][t].empty()) {
-//                ID i = 0;
-//                for (ID j = 0; j < input.nodeNum; ++j) {
-//                    if (i == j) { continue; }
-//                    if (!presetX.xEdge[v][t][i][j]) { continue; }
-//
-//                    route << i << ",";
-//                    quant << fixed << presetX.xQuantity[v][t][i] << ",";
-//
-//                    if (j == 0) { break; }
-//                    i = j;
-//                    j = -1;
-//                }
-//            }
-//
-//            ofs << route.str() << endl << quant.str() << endl;
-//        }
-//    }
-//}
+void IrpModelSolver::saveSolution(const Input &input, const PresetX &presetX, const string &path) {
+    ofstream ofs(path);
+
+    for (ID t = 0; t < input.periodNum; ++t) {
+        ofs << "period," << t << ",================================" << endl;
+        for (ID v = 0; v < input.vehicleNum; ++v) {
+            ostringstream route;
+            route << v << ",";
+            ostringstream quant;
+            quant.precision(2);
+            quant << ",";
+
+            if (!presetX.xEdge[v][t].empty()) {
+                ID i = 0;
+                for (ID j = 0; j < input.nodeNum; ++j) {
+                    if (i == j) { continue; }
+                    if (!presetX.xEdge[v][t][i][j]) { continue; }
+
+                    route << i << ",";
+                    quant << fixed << presetX.xQuantity[v][t][i] << ",";
+
+                    if (j == 0) { break; }
+                    i = j;
+                    j = -1;
+                }
+            }
+
+            ofs << route.str() << endl << quant.str() << endl;
+        }
+    }
+}
 
 void IrpModelSolver::addDecisionVars() {
     initSkipNodes();
@@ -351,6 +351,8 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
 
     for (ID t = 0; t < input.periodNum; ++t) {
         if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+
+        // 仓库的quantity要额外考虑，多辆车会出问题
         for (ID i = 0; i < input.nodeNum; ++i) {
             if (aux.skipNode[t][i]) { continue; }
             MpSolver::LinearExpr totalQuantity = 0;
@@ -360,7 +362,11 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if (i == j) { continue; }
                     if (aux.skipNode[t][j]) { continue; }
-                    visitedTime += x.xEdge[v][t][i][j];
+                    if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && cfg.optimizeTotalCost) {
+                        if (presetX.xEdge[v][t][i][j]) { visitedTime += 1; break; }
+                    } else {
+                        visitedTime += x.xEdge[v][t][i][j];
+                    }
                 }
             }
             mpSolver.makeConstraint(totalQuantity <= input.nodes[i].capacity * visitedTime, "qv");
@@ -674,6 +680,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
         for (ID t = 0; (t < start + size) && (t < input.periodNum); ++t) {
+            check skipped nodes
             if (!aux.skipNode[t][i]) {
                 for (ID v = 0; v < input.vehicleNum; ++v) {
                     if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
@@ -691,22 +698,23 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
     return totalCost;
 }
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::increasedHoldingCost(ID t) {
-    MpSolver::LinearExpr totalCost = 0;
-
-    if (!cfg.usePresetSolution || !presetX.isPeriodFixed[t]) { return 0; }
-    for (ID v = 0; v < input.vehicleNum; ++v) {
-        totalCost -= input.nodes[0].holdingCost * (x.xQuantity[v][t][0] - presetX.xQuantity[v][t][0]);
-    }
-    for (ID i = 1; i < input.nodeNum; ++i) {
-        if (aux.skipNode[t][i]) { continue; }
-        for (ID v = 0; v < input.vehicleNum; ++v) {
-            totalCost += input.nodes[i].holdingCost * (x.xQuantity[v][t][i] - presetX.xQuantity[v][t][i]);
-        }
-    }
-
-    return totalCost;
-}
+// TODO[qym][5]: to delete 
+//IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::increasedHoldingCost(ID t) {
+//    MpSolver::LinearExpr totalCost = 0;
+//
+//    if (!cfg.usePresetSolution || !presetX.isPeriodFixed[t]) { return 0; }
+//    for (ID v = 0; v < input.vehicleNum; ++v) {
+//        totalCost -= input.nodes[0].holdingCost * (x.xQuantity[v][t][0] - presetX.xQuantity[v][t][0]);
+//    }
+//    for (ID i = 1; i < input.nodeNum; ++i) {
+//        if (aux.skipNode[t][i]) { continue; }
+//        for (ID v = 0; v < input.vehicleNum; ++v) {
+//            totalCost += input.nodes[i].holdingCost * (x.xQuantity[v][t][i] - presetX.xQuantity[v][t][i]);
+//        }
+//    }
+//
+//    return totalCost;
+//}
 
 IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::restQuantityUntilPeriod(ID node, int size) {
     MpSolver::LinearExpr totalQuantity = 0;
@@ -727,28 +735,6 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::totalShortageQuantity() {
     }
     return shortage;
 }
-
-//void IrpModelSolver::record() {
-//    ostringstream log;
-//    log << input.instanceName << ","
-//        << input.bestObjective << ","
-//        << mpSolver.getObjectiveValue() << ","
-//        << elapsedSeconds << ","
-//        << input.referenceObjective << ","
-//        << getBenchmarkDuration() << endl;
-//
-//    // append all text atomically.
-//    static mutex logFileMutex;
-//    lock_guard<mutex> logFileGuard(logFileMutex);
-//
-//    ofstream logFileName(input.logFileName, ios::app);
-//    logFileName.seekp(0, ios::end);
-//    if (logFileName.tellp() <= 0) {
-//        logFileName << "Instance,Best Obj,ObjValue,Duration,Benchmark,Cpu" << endl;
-//    }
-//    logFileName << log.str();
-//    logFileName.close();
-//}
 
 bool IrpModelSolver::check() {
     // check feasibility

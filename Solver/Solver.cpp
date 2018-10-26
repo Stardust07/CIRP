@@ -303,6 +303,7 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
     IrpModelSolver modelSolver;
     if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
 
+    // TODO[qym][5]: to delete
     //IrpModelSolver::Input &modelInput(modelSolver.input);
     //modelInput.nodeNum = input.nodes_size();
     //modelInput.periodNum = input.periodnum();
@@ -329,8 +330,178 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
 
     // record solution.
     sln.totalCost = modelSolver.getObjValue();
+    retrieveOutputFromModel(sln, modelSolver.presetX);
+
+    return true;
+}
+
+bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
+    const int ReduceModelScaleIteration = 3;
+    const int RandModelScaleIteration = 6;
+    const int DefaultMoveCount = 2 - (rand() % 2);
+    const int DefaultTimeLimitPerIteration = 600;
+    const int DefaultTimeLimitSecond = IrpModelSolver::DefaultTimeLimitSecond;
+
+    // generate initial solution using slack constraints for customer's min level.
+    IrpModelSolver initSolver;
+    convertToModelInput(initSolver.input, input);
+    initSolver.routingCost = aux.routingCost;
+    initSolver.enableRelaxMinLevel();
+    
+    if (!initSolver.solve()) { return false; }
+
+    // initialize tabu table.
+    vector<int> tabuTable(input.periodnum(), -1);
+    for (int i = (input.periodnum() + 1) / 2; i < input.periodnum(); ++i) {
+        tabuTable[i] = tabuTable[i - 1] + 1;
+    }
+
+    int iter = 0;
+    int iterNoImprove = 0;
+    int timeLimitPerIteration = DefaultTimeLimitPerIteration;
+    int moveCount = DefaultMoveCount;  // select moveCount periods to reoptimize per iteration.
+    double secondsUntilOpt = initSolver.getDurationInSecond(); // elapsed seconds when the best solution was found.
+    double totalSeconds = secondsUntilOpt; // total elapsed seconds.
+    double bestObj = initSolver.getObjValue();
+
+    IrpModelSolver::PresetX presetX(move(initSolver.presetX));
+    // reoptimize with initial solution
+    while ((totalSeconds < DefaultTimeLimitSecond) && (abs(bestObj - input.referenceobj()) > IrpModelSolver::DefaultDoubleGap)) {
+        // update time limit and move count according to the number of iterations where solution is not improved. 
+        if (iterNoImprove > RandModelScaleIteration) {
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = (rand() % input.periodnum()) + 1;
+        } else if (iterNoImprove > ReduceModelScaleIteration) { // shrink neighborhood in case it is too complex.
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = makeSureInRange(static_cast<int>(rand() % max(input.periodnum() / 3, 1) + 1), 1, moveCount);
+        } else if (iterNoImprove > 0) { // expand neighborhood in case stagnating in local optima.
+            timeLimitPerIteration = min(timeLimitPerIteration * 1.5, DefaultTimeLimitSecond - totalSeconds);
+            moveCount = makeSureInRange(++moveCount, 1, input.periodnum() * 2 / 3);
+        } else {
+            timeLimitPerIteration = min(DefaultTimeLimitPerIteration, DefaultTimeLimitSecond - static_cast<int>(totalSeconds));
+        }
+
+        IrpModelSolver::saveSolution(initSolver.input, presetX, env.friendlyLocalTime() + "_" + to_string(iter) + "_" + env.logPath);
+        IrpModelSolver solver(initSolver.input);
+        solver.enablePresetSolution();
+        solver.presetX = presetX;
+        solver.setTimeLimitInSecond(timeLimitPerIteration);
+        if (!getFixedPeriods(input.periodnum(), solver.presetX.isPeriodFixed, iter, tabuTable, moveCount)) { break; }
+        if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
+        
+        bool feasibleFound = solver.solve();
+        totalSeconds += solver.getDurationInSecond();
+        ++iter;
+        ++iterNoImprove;
+        if (!feasibleFound) { continue; }
+        if (bestObj - solver.getCostInPeriod(0, input.periodnum()) < IrpModelSolver::DefaultDoubleGap) { continue; }
+        // update optimal.
+        iterNoImprove = 0;
+        bestObj = solver.getCostInPeriod(0, input.periodnum());
+        secondsUntilOpt = totalSeconds;
+        
+        cout << "\nFix: ";
+        for (int i = 0; i < input.periodnum(); ++i) {
+            if (!solver.presetX.isPeriodFixed[i]) { continue; }
+            cout << i << " ";
+        }
+        cout << "\nBest: " << bestObj << endl;
+
+        presetX = move(solver.presetX);
+    }
+
+    sln.totalCost = bestObj;
+    retrieveOutputFromModel(sln, presetX);
+    return true;
+}
+
+bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
+    IrpModelSolver::Input originInput;
+    convertToModelInput(originInput, input);
+
+    IrpModelSolver irpSolver(originInput);
+    if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
+    if (!irpSolver.solveIRPModel()) { return; }
+    double bestObj = irpSolver.getObjValue();
+    double elapsedSeconds = irpSolver.getDurationInSecond();
+
+    IrpModelSolver::PresetX presetX(move(irpSolver.presetX));
+    presetX.xEdge.resize(originInput.vehicleNum);
+    for (int v = 0; v < originInput.vehicleNum; ++v) {
+        presetX.xEdge[v].resize(originInput.periodNum);
+        for (int t = 0; t < originInput.periodNum; ++t) {
+            if (presetX.xQuantity[v][t][0] > -IrpModelSolver::DefaultDoubleGap) { continue; }
+            presetX.xEdge[v][t].resize(originInput.nodeNum);
+            vector<int> nodeIndices;
+            IrpModelSolver::Input routeInput;
+            routeInput.periodNum = 1;
+            routeInput.vehicleNum = 1;
+            routeInput.vehicleCapacity = originInput.vehicleCapacity;
+            routeInput.nodes.push_back(originInput.nodes[0]);
+            presetX.xEdge[v][t][0].resize(originInput.nodeNum, false);
+            nodeIndices.push_back(0);
+            for (int i = 1; i < originInput.nodeNum; ++i) {
+                presetX.xEdge[v][t][i].resize(originInput.nodeNum, false);
+                if (presetX.xQuantity[v][t][i] > IrpModelSolver::DefaultDoubleGap) {
+                    routeInput.nodes.push_back(originInput.nodes[i]);
+                    nodeIndices.push_back(i);
+                }
+            }
+            routeInput.nodeNum = routeInput.nodes.size();
+
+            cout << "\nSolving period " << t << " with " << routeInput.nodeNum << " nodes.\n" << endl;
+            IrpModelSolver routeSolver(routeInput, false);
+            routeSolver.setTimeLimitInSecond(1200);
+            if (!routeSolver.solveRoutingModel()) {
+                cout << "Period " << t << " has not solved." << endl;
+                continue;
+            }
+            bestObj += routeSolver.getObjValue();
+            elapsedSeconds += routeSolver.getDurationInSecond();
+            for (int i = 0; i < routeInput.nodeNum; ++i) {
+                for (int j = 0; j < routeInput.nodeNum; ++j) {
+                    if (i == j) { continue; }
+                    presetX.xEdge[v][t][nodeIndices[i]][nodeIndices[j]] = routeSolver.presetX.xEdge[v][0][i][j];
+                }
+            }
+        }
+    }
+
+    // reverse quantity in supplier since it is positive in other models.
+    for (int v = 0; v < originInput.vehicleNum; ++v) {
+        for (int t = 0; t < originInput.periodNum; ++t) {
+            presetX.xQuantity[v][t][0] = -presetX.xQuantity[v][t][0];
+        }
+    }
+    retrieveOutputFromModel(sln, presetX);
+
+    return true;
+}
+
+void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::Input & problem) {
+    model.nodeNum = problem.nodes_size();
+    model.periodNum = problem.periodnum();
+    model.vehicleNum = problem.vehicles_size();
+    model.bestObjective = problem.bestobj();
+    model.referenceObjective = problem.referenceobj();
+
+    model.nodes.resize(model.nodeNum);
+    for (auto i = problem.nodes().begin(); i != problem.nodes().end(); ++i) {
+        //model.nodes[i->id()].xPoint = i->x();
+        //model.nodes[i->id()].yPoint = i->y();
+        model.nodes[i->id()].initialQuantity = i->initquantity();
+        model.nodes[i->id()].capacity = i->capacity();
+        model.nodes[i->id()].minLevel = i->minlevel();
+        model.nodes[i->id()].unitDemand = i->unitdemand();
+        model.nodes[i->id()].holdingCost = i->holidingcost();
+    }
+    model.nodes[0].unitDemand = -model.nodes[0].unitDemand;
+    model.vehicleCapacity = problem.vehicles()[0].capacity();
+}
+
+void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver::PresetX & presetX) {
     auto &allRoutes(*sln.mutable_allroutes());
-    const IrpModelSolver::PresetX &presetX(modelSolver.presetX);
+    const IrpModelSolver::PresetX &presetX(presetX);
     for (ID p = 0; p < input.periodnum(); ++p) {
         auto &routeInPeriod(*allRoutes.Add());
         for (ID v = 0; v != input.vehicles_size(); ++v) {
@@ -355,119 +526,54 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
             }
         }
     }
-
-    return true;
 }
 
-bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
-    const int ReduceModelScaleIteration = 3;
-    const int RandModelScaleIteration = 6;
-    const int DefaultMoveCount = 2 - (rand() % 2);
-    const int DefaultTimeLimitPerIteration = 600;
-    const int DefaultTimeLimitSecond = IrpModelSolver::DefaultTimeLimitSecond;
+bool Solver::getFixedPeriods(int periodNum, List<bool>& isPeriodFixed, int iter, List<int>& tabuTable, int totalMoveCount) {
+    // reset tabu table when no feasible move found.
+    const bool resetTabuTable = true;
 
-    vector<double> costForPeriod(input.periodnum(), 0);
-    
-    // generate initial solution using slack constraints for customer's min level.
-    IrpModelSolver initSolver;
-    convertToModelInput(initSolver.input, input);
-    initSolver.routingCost = aux.routingCost;
-    initSolver.enableRelaxMinLevel();
-    
-    if (!initSolver.solve()) { return false; }
-    double bestObj = initSolver.getObjValue();
-    costForPeriod = initSolver.sln.costForPeriod;
-
-    // initialize tabu table.
-    vector<int> tabuTable(input.periodnum(), -1);
-    for (int i = (input.periodnum() + 1) / 2; i < input.periodnum(); ++i) {
-        tabuTable[i] = tabuTable[i - 1] + 1;
+    int nonTabuCount = 0;
+    for (int t = 0; t < periodNum; ++t) {
+        if (iter > tabuTable[t]) { ++nonTabuCount; }
     }
 
-    int iter = 0;
-    int iterNoImprove = 0;
-    int timeLimitPerIteration = DefaultTimeLimitPerIteration;
-    int moveCount = DefaultMoveCount;  // select moveCount periods to reoptimize per iteration.
-    double secondsUntilOpt = initSolver.getDurationInSecond(); // elapsed seconds when the best solution was found.
-    double totalSeconds = secondsUntilOpt; // total elapsed seconds.
-
-    IrpModelSolver::PresetX presetX(move(initSolver.presetX));
-    // reoptimize with initial solution
-    while (totalSeconds < DefaultTimeLimitSecond && abs(bestObj - input.referenceobj()) > IrpModelSolver::DefaultDoubleGap) {
-        // update 
-        if (iterNoImprove > RandModelScaleIteration) {
-            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
-            moveCount = (rand() % input.periodnum()) + 1;
-        } else if (iterNoImprove > ReduceModelScaleIteration) { // shrink neighborhood in case it is too complex.
-            timeLimitPerIteration = min(timeLimitPerIteration * 1.2, DefaultTimeLimitSecond - totalSeconds);
-            moveCount = makeSureInRange(static_cast<int>(rand() % max(input.periodnum() / 3, 1) + 1), 1, moveCount);
-        } else if (iterNoImprove > 0) { // expand neighborhood in case stagnating in local optima.
-            timeLimitPerIteration = min(timeLimitPerIteration * 1.5, DefaultTimeLimitSecond - totalSeconds);
-            moveCount = makeSureInRange(++moveCount, 1, input.periodnum() * 2 / 3);
-        } else {
-            timeLimitPerIteration = min(DefaultTimeLimitPerIteration, DefaultTimeLimitSecond - static_cast<int>(totalSeconds));
+    // return or reset tabu table if the number of non-tabu periods is less than half of total move count. 
+    if (nonTabuCount < ((totalMoveCount + 1) / 2)) {
+        if (!resetTabuTable) { return false; }
+        while (nonTabuCount < ((totalMoveCount + 1) / 2)) {
+            // reset tabu table randomly
+            int p = rand() % periodNum;
+            if (iter > tabuTable[p]) { continue; }
+            tabuTable[p] = iter - 1;
+            ++nonTabuCount;
         }
-
-        //IrpModelSolver::saveSolution(initSolver.input, presetX, "../Solution/" + dir + "." + instance.substr(0, instance.find_first_of('.')) + "." + getTightLocalTime() + ".csv");
-        IrpModelSolver solver(initSolver.input);
-        solver.enablePresetSolution();
-        solver.presetX = presetX;
-        solver.setTimeLimitInSecond(timeLimitPerIteration);
-        if (!getFixedPeriods(input.periodnum(), solver.presetX.isPeriodFixed, iter, tabuTable, moveCount)) { break; }
-
-        //cout << "\nFix: ";
-        //double fixedCost = 0;
-        //for (int i = 0; i < input.periodnum(); ++i) {
-        //    if (!solver.presetX.isPeriodFixed[i]) { continue; }
-        //    cout << i << " ";
-        //    fixedCost += costForPeriod[i];
-        //    solver.fixPeriod(i);
-        //}
-        //cout << "\n" << endl;
-
-        if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
-        bool feasibleFound = solver.solve();
-        totalSeconds += solver.getDurationInSecond();
-        ++iter;
-        ++iterNoImprove;
-        if (!feasibleFound) { continue; }
-        if (bestObj - solver.getCostInPeriod(0, input.periodnum()) < IrpModelSolver::DefaultDoubleGap) { continue; }
-
-        iterNoImprove = 0;
-        secondsUntilOpt = totalSeconds;
-        bestObj = solver.getCostInPeriod(0, input.periodnum());
-        cout << "Best: " << bestObj << endl;
-
-        costForPeriod = solver.sln.costForPeriod;
-        presetX = move(solver.presetX);
     }
 
-    return true;
-}
+    bool feasible = true;
+    do {
+        int tabuMoveCount = 0;
+        int moveCount = 0;
 
-bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
-    return true;
-}
+        feasible = true;
+        fill(isPeriodFixed.begin(), isPeriodFixed.end(), true);
+        while (moveCount < totalMoveCount) {
+            // select fixed periods randomly.
+            int p = rand() % periodNum;
+            if (!isPeriodFixed[p]) { continue; }
+            isPeriodFixed[p] = false;
+            ++moveCount;
+            if (iter <= tabuTable[p]) { ++tabuMoveCount; }
+            // the number of selected tabu periods should be no more than half of the total move count
+            if (tabuMoveCount > totalMoveCount / 2) { feasible = false; break; }
+        }
+    } while (!feasible);
 
-void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::Input & problem) {
-    model.nodeNum = problem.nodes_size();
-    model.periodNum = problem.periodnum();
-    model.vehicleNum = problem.vehicles_size();
-    model.bestObjective = problem.bestobj();
-    model.referenceObjective = problem.referenceobj();
-
-    model.nodes.resize(model.nodeNum);
-    for (auto i = problem.nodes().begin(); i != problem.nodes().end(); ++i) {
-        //model.nodes[i->id()].xPoint = i->x();
-        //model.nodes[i->id()].yPoint = i->y();
-        model.nodes[i->id()].initialQuantity = i->initquantity();
-        model.nodes[i->id()].capacity = i->capacity();
-        model.nodes[i->id()].minLevel = i->minlevel();
-        model.nodes[i->id()].unitDemand = i->unitdemand();
-        model.nodes[i->id()].holdingCost = i->holidingcost();
+    for (int t = 0; t < periodNum; ++t) {
+        if (isPeriodFixed[t]) { continue; }
+        int tabuLen = 1 + rand() % (periodNum / 2);
+        tabuTable[t] = iter + tabuLen;
     }
-    model.nodes[0].unitDemand = -model.nodes[0].unitDemand;
-    model.vehicleCapacity = problem.vehicles()[0].capacity();
+    return true;
 }
 #pragma endregion Solver
 

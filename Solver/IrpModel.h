@@ -86,7 +86,6 @@ public:
     bool solve();
     bool solveIRPModel();
     bool solveRoutingModel();
-    void setFindFeasiblePreference() { mpSolver.setFocus(1); }
     void retrieveSolution();
 
     static void saveSolution(const Input &input, const PresetX &presetX, const std::string &path);
@@ -94,7 +93,7 @@ public:
     MpSolver::LinearExpr totalCostInPeriod(int start, int size, bool addInitial = true);
     MpSolver::LinearExpr routingCostInPeriod(int start, int size);
     MpSolver::LinearExpr holdingCostInPeriod(int start, int size, bool addInitial = true);
-    MpSolver::LinearExpr increasedHoldingCost(ID t);
+    //MpSolver::LinearExpr increasedHoldingCost(ID t);
     MpSolver::LinearExpr restQuantityUntilPeriod(ID node, int size);
     MpSolver::LinearExpr totalShortageQuantity();
 
@@ -120,11 +119,11 @@ public:
     void setPresetQuantity(ID v, ID t, List<double> xQuantity) {
         presetX.xQuantity[v][t] = xQuantity;
     }
-
+    void setFindFeasiblePreference() { mpSolver.setFocus(1); }
     void enableRelaxMinLevel() { cfg.relaxMinlevel = true; }
     void setTimeLimitInSecond(int second) { mpSolver.setTimeLimitInSecond(second); }
+
 protected:
-    void record();
     bool check();
 
     void addDecisionVars();
@@ -162,8 +161,6 @@ protected:
         setTimeLimitInSecond(DefaultTimeLimitSecond);
         mpSolver.setMaxThreadNum(DefaultMaxThreadNum);
         if (cfg.useBenchmark) {
-            //input.bestObjective = input.referenceMap[input.instanceName][1];
-            //input.referenceObjective = input.referenceMap[input.instanceName][0];
             currentObjective = 2 * getReferenceObj();
         } else {
             currentObjective = 0;
@@ -216,6 +213,7 @@ protected:
 
         auto shouldSkipUnvisitedNode = [&](ID t, ID n, double prob) {
             for (ID v = 0; v < input.vehicleNum; ++v) {
+                有配送量的客户一定不跳过
                 if (lround(presetX.xQuantity[v][t][n]) > 0) { return false; }
             }
             return (rand() % 100 < 100 * prob);
@@ -231,6 +229,13 @@ protected:
                 if (aux.skipNode[t][n]) { std::cout << n << " "; }
             }
             std::cout << std::endl << "skip " << skipCount << " nodes in period " << t << std::endl;
+        }
+
+        for (ID t = 0; t < input.periodNum; ++t) {
+            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            for (ID i = 1; i < input.nodeNum; ++i) {
+                aux.skipNode[t][i] = shouldSkipUnvisitedNode(t, i, prob);
+            }
         }
     }
 
