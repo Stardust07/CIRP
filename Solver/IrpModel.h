@@ -213,7 +213,7 @@ protected:
 
         auto shouldSkipUnvisitedNode = [&](ID t, ID n, double prob) {
             for (ID v = 0; v < input.vehicleNum; ++v) {
-                有配送量的客户一定不跳过
+				// don't skip customers with preset delivery quantity.
                 if (lround(presetX.xQuantity[v][t][n]) > 0) { return false; }
             }
             return (rand() % 100 < 100 * prob);

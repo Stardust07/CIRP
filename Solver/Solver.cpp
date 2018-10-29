@@ -292,8 +292,8 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     sln.totalCost = 0;
 
     // TODO[0]: replace the following random assignment with your own algorithm.
-    solveWithCompleteModel(sln, true);
-    //solveWithRelaxedInit(sln);
+    //solveWithCompleteModel(sln, true);
+    solveWithRelaxedInit(sln);
     //solveWithDecomposition(sln);
 
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
@@ -383,8 +383,8 @@ bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
 
         IrpModelSolver::saveSolution(initSolver.input, presetX, env.friendlyLocalTime() + "_" + to_string(iter) + "_" + env.logPath);
         IrpModelSolver solver(initSolver.input);
-        solver.enablePresetSolution();
         solver.presetX = presetX;
+        solver.enablePresetSolution();
         solver.setTimeLimitInSecond(timeLimitPerIteration);
         if (!getFixedPeriods(input.periodnum(), solver.presetX.isPeriodFixed, iter, tabuTable, moveCount)) { break; }
         if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
@@ -421,7 +421,7 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
 
     IrpModelSolver irpSolver(originInput);
     if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
-    if (!irpSolver.solveIRPModel()) { return; }
+    if (!irpSolver.solveIRPModel()) { return false; }
     double bestObj = irpSolver.getObjValue();
     double elapsedSeconds = irpSolver.getDurationInSecond();
 
@@ -501,7 +501,6 @@ void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::I
 
 void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver::PresetX & presetX) {
     auto &allRoutes(*sln.mutable_allroutes());
-    const IrpModelSolver::PresetX &presetX(presetX);
     for (ID p = 0; p < input.periodnum(); ++p) {
         auto &routeInPeriod(*allRoutes.Add());
         for (ID v = 0; v != input.vehicles_size(); ++v) {

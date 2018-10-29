@@ -680,7 +680,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
         for (ID t = 0; (t < start + size) && (t < input.periodNum); ++t) {
-            check skipped nodes
+            // check skipped nodes
             if (!aux.skipNode[t][i]) {
                 for (ID v = 0; v < input.vehicleNum; ++v) {
                     if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
