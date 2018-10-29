@@ -335,25 +335,24 @@ void IrpModelSolver::addPathConnectivityConstraint() {
 }
 
 void IrpModelSolver::addDeliveryQuantityConstraint() {
-    if (cfg.usePresetSolution) {
-        for (ID t = 0; t < input.periodNum; ++t) {
-            if (presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
-            for (ID i = 0; i < input.nodeNum; ++i) {
-                if (aux.skipNode[t][i]) { continue; }
-                for (ID v = 0; v < input.vehicleNum; ++v) {
-                    if (lround(presetX.xQuantity[v][t][i]) <= 0) {
-                        mpSolver.makeConstraint(x.xQuantity[v][t][i] <= 0, "fq");
-                    }
+    for (ID t = 0; t < input.periodNum; ++t) {
+        if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+        // for supplier
+        for (ID v = 0; v < input.vehicleNum; ++v) {
+            MpSolver::LinearExpr visitedTime = 0;
+            for (ID j = 1; j < input.nodeNum; ++j) {
+                if (aux.skipNode[t][j]) { continue; }
+                if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && cfg.optimizeTotalCost) {
+                    if (presetX.xEdge[v][t][0][j]) { visitedTime += 1; break; }
+                } else {
+                    visitedTime += x.xEdge[v][t][0][j];
                 }
             }
+            mpSolver.makeConstraint(x.xQuantity[v][t][0] <= input.vehicleCapacity * visitedTime, "qv0");
         }
-    }
 
-    for (ID t = 0; t < input.periodNum; ++t) {
-        if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
-
-        // 仓库的quantity要额外考虑，多辆车会出问题
-        for (ID i = 0; i < input.nodeNum; ++i) {
+        // for customers
+        for (ID i = 1; i < input.nodeNum; ++i) {
             if (aux.skipNode[t][i]) { continue; }
             MpSolver::LinearExpr totalQuantity = 0;
             MpSolver::LinearExpr visitedTime = 0;
@@ -372,6 +371,7 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
             mpSolver.makeConstraint(totalQuantity <= input.nodes[i].capacity * visitedTime, "qv");
         }
     }
+
     //for (ID v = 0; v < input.vehicleNum; ++v) {
     //    for (ID t = 0; t < input.periodNum; ++t) {
     //        for (ID i = 1; i < input.nodeNum; ++i) {
