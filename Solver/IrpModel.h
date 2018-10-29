@@ -45,10 +45,10 @@ public:
         double referenceObjective;
     };
 
-    struct Solution {
-        List2D<List<double>> deliveryQuantity;
-        List<double> costForPeriod;
-    };
+    //struct Solution {
+    //    List2D<List<double>> deliveryQuantity;
+    //    List<double> costForPeriod;
+    //};
 
     struct PresetX {
         List<bool> isPeriodFixed;
@@ -252,7 +252,6 @@ protected:
     #pragma region Field
 public:
     Input input;
-    Solution sln;
     List2D<double> routingCost;
 
     double elapsedSeconds;

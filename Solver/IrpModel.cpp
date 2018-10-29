@@ -51,7 +51,7 @@ bool IrpModelSolver::solve() {
 }
 
 bool IrpModelSolver::solveIRPModel() {
-    initRoutingCost();
+    //initRoutingCost();
 
     addIRPVariables();
     addNodeCapacityConstraint();
@@ -105,27 +105,27 @@ bool IrpModelSolver::solveRoutingModel() {
 }
 
 void IrpModelSolver::retrieveSolution() {
-    List2D<List<double>> &deliveryQuantity(sln.deliveryQuantity);
-    deliveryQuantity = List2D<List<double>>(input.vehicleNum, List2D<double>(input.periodNum, List<double>(input.nodeNum, 0)));
-    List<double> &costForPeriod(sln.costForPeriod);
-    costForPeriod.resize(input.periodNum, 0);
-    for (int t = 0; t < input.periodNum; ++t) {
-        costForPeriod[t] = getCostInPeriod(t, 1);
+    //List2D<List<double>> &deliveryQuantity(sln.deliveryQuantity);
+    //deliveryQuantity = List2D<List<double>>(input.vehicleNum, List2D<double>(input.periodNum, List<double>(input.nodeNum, 0)));
+    //List<double> &costForPeriod(sln.costForPeriod);
+    //costForPeriod.resize(input.periodNum, 0);
+    //for (int t = 0; t < input.periodNum; ++t) {
+    //    costForPeriod[t] = getCostInPeriod(t, 1);
 
-        for (int v = 0; v < input.vehicleNum; ++v) {
-            for (int i = 0; i < input.nodeNum; ++i) {
-                if (aux.skipNode[t][i]) { continue; }
-                deliveryQuantity[v][t][i] = getQuantity(v, t, i);
-            }
-        }
-        if (!cfg.usePresetSolution) { continue; }
-    }
+    //    for (int v = 0; v < input.vehicleNum; ++v) {
+    //        for (int i = 0; i < input.nodeNum; ++i) {
+    //            if (aux.skipNode[t][i]) { continue; }
+    //            deliveryQuantity[v][t][i] = getQuantity(v, t, i);
+    //        }
+    //    }
+    //    if (!cfg.usePresetSolution) { continue; }
+    //}
 
-    cout << "Cost: ";
-    for (int t = 0; t < input.periodNum; ++t) {
-        cout << costForPeriod[t] << ", ";
-    }
-    cout << getCostInPeriod(0, input.periodNum) << endl;
+    //cout << "Cost: ";
+    //for (int t = 0; t < input.periodNum; ++t) {
+    //    cout << costForPeriod[t] << ", ";
+    //}
+    //cout << getCostInPeriod(0, input.periodNum) << endl;
     //cout << endl << "Quantity: " << endl;
     //for (int v = 0; v < input.vehicleNum; ++v) {
     //    for (int i = 0; i < input.nodeNum; ++i) {
@@ -502,6 +502,7 @@ void IrpModelSolver::addIRPVariables() {
         x.xQuantity[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
             x.xQuantity[v][t].resize(input.nodeNum);
+            // load quantity at supplier is negative in irp model, positive otherwise.
             x.xQuantity[v][t][0] = mpSolver.makeVar(
                 MpSolver::VariableType::Real, -min(input.vehicleCapacity, input.nodes[0].capacity), 0);
             for (ID i = 1; i < input.nodeNum; ++i) {
@@ -639,7 +640,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::routingCostInPeriod(int sta
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if ((i == j) || aux.skipNode[t][j]) { continue; }
                     if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) {
-                        totalCost += routingCost[i][j] * presetX.xEdge[v][t][i][j];
+                        totalCost += routingCost[i][j] * (presetX.xEdge[v][t][i][j] ? 1 : 0);
                     } else {
                         totalCost += routingCost[i][j] * x.xEdge[v][t][i][j];
                     }
@@ -680,7 +681,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
         for (ID t = 0; (t < start + size) && (t < input.periodNum); ++t) {
-            // check skipped nodes
+             //check skipped nodes
             if (!aux.skipNode[t][i]) {
                 for (ID v = 0; v < input.vehicleNum; ++v) {
                     if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {

@@ -383,6 +383,7 @@ bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
 
         IrpModelSolver::saveSolution(initSolver.input, presetX, env.friendlyLocalTime() + "_" + to_string(iter) + "_" + env.logPath);
         IrpModelSolver solver(initSolver.input);
+        solver.routingCost = aux.routingCost;
         solver.presetX = presetX;
         solver.enablePresetSolution();
         solver.setTimeLimitInSecond(timeLimitPerIteration);
@@ -420,6 +421,7 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
     convertToModelInput(originInput, input);
 
     IrpModelSolver irpSolver(originInput);
+    irpSolver.routingCost = aux.routingCost;
     if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
     if (!irpSolver.solveIRPModel()) { return false; }
     double bestObj = irpSolver.getObjValue();
