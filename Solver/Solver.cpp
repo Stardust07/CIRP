@@ -362,7 +362,7 @@ bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
     int moveCount = DefaultMoveCount;  // select moveCount periods to reoptimize per iteration.
     double secondsUntilOpt = initSolver.getDurationInSecond(); // elapsed seconds when the best solution was found.
     double totalSeconds = secondsUntilOpt; // total elapsed seconds.
-    double bestObj = initSolver.getObjValue();
+    double bestObj = initSolver.getCostInPeriod(0, input.periodnum(), true);
 
     IrpModelSolver::PresetX presetX(move(initSolver.presetX));
     // reoptimize with initial solution

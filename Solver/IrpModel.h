@@ -107,7 +107,7 @@ public:
 
     void enablePresetSolution() {
         if (cfg.usePresetSolution) { return; }
-        cfg.useBenchmark = false;
+        //cfg.useBenchmark = false;
         cfg.usePresetSolution = true;
         cfg.optimizeTotalCost = true;
         presetX.isPeriodFixed.resize(input.periodNum, false);
@@ -168,6 +168,12 @@ protected:
         //mpSolver.setOutput(false);
     }
     void initRoutingCost() {
+        if (routingCost.empty()) { 
+            std::cout << "Init routing cost!" << std::endl;
+            int x; std::cin >> x;
+        } else {
+            return;
+        }
         routingCost.resize(input.nodeNum);
         for (ID i = 0; i < input.nodeNum; ++i) {
             routingCost[i].resize(input.nodeNum);

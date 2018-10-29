@@ -15,6 +15,8 @@ std::string str(const T &obj, Ts ... objs) { return str(obj) + Delimiter + str(o
 namespace szx {
 
 bool IrpModelSolver::solve() {
+    initRoutingCost();
+
     addDecisionVars();
     addPathConnectivityConstraint();
     addDeliveryQuantityConstraint();
@@ -51,7 +53,7 @@ bool IrpModelSolver::solve() {
 }
 
 bool IrpModelSolver::solveIRPModel() {
-    //initRoutingCost();
+    initRoutingCost();
 
     addIRPVariables();
     addNodeCapacityConstraint();
@@ -78,6 +80,7 @@ bool IrpModelSolver::solveIRPModel() {
 
 bool IrpModelSolver::solveRoutingModel() {
     initRoutingCost();
+
     addRoutingVariables();
     addRoutingConstraints();
     setRoutingCostObjective();
