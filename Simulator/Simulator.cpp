@@ -179,7 +179,6 @@ void Simulator::convertInstanceToPb(const String & fileName) {
     Problem::Input input;
     String instanceName(fileName);
     instanceName = instanceName.substr(instanceName.find_first_of('_') + 1);
-    cout << instanceName;
     input.set_bestobj(benchmarks[instanceName][0]);
     input.set_referenceobj(benchmarks[instanceName][1]);
     input.set_referencetime(benchmarks[instanceName][2]);
@@ -300,10 +299,10 @@ bool Simulator::importBenchmarksFromCsv() {
             String instanceName = buf.substr(0, index);
             double bestObj, referenceObj, referenceTime;
             iss.str(buf.substr(index + 1, buf.find_first_of(',', index + 1)));
-            iss >> bestObj;
+            iss >> referenceObj;
             index = buf.find_first_of(',', index + 1);
             iss.str(buf.substr(index + 1, buf.find_first_of(',', index + 1)));
-            iss >> referenceObj;
+            iss >> bestObj;
             index = buf.find_first_of(',', index + 1);
             iss.str(buf.substr(index + 1));
             iss >> referenceTime;
