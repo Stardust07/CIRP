@@ -236,13 +236,6 @@ protected:
             }
             std::cout << std::endl << "skip " << skipCount << " nodes in period " << t << std::endl;
         }
-
-        for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
-            for (ID i = 1; i < input.nodeNum; ++i) {
-                aux.skipNode[t][i] = shouldSkipUnvisitedNode(t, i, prob);
-            }
-        }
     }
 
     void addIRPVariables();

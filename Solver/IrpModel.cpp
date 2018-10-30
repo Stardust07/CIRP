@@ -558,7 +558,7 @@ void IrpModelSolver::setHoldingCostObjective() {
     totalCost += input.nodes[0].holdingCost * restQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            restQuantity -= x.xQuantity[v][t][0];
+            restQuantity += x.xQuantity[v][t][0];
         }
         restQuantity += input.nodes[0].unitDemand;
         totalCost += input.nodes[0].holdingCost * restQuantity;
