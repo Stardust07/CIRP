@@ -208,7 +208,7 @@ protected:
     void retrieveOutputFromModel(Problem::Output &sln, const IrpModelSolver::PresetX &presetX);
 
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
-    bool initRoutingSolver(List<List<bool>> &edges, double &obj, double &seconds, 
+    bool generateInitRouting(List<List<bool>> &edges, double &obj, double &seconds, 
         const List<double> &quantity, const IrpModelSolver::Input inp);
 
     template<typename T>

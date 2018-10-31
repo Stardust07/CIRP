@@ -300,6 +300,8 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     return status;
 }
 bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
+    cfg.alg = Configuration::Algorithm::MathematicallProgramming;
+
     IrpModelSolver modelSolver;
     if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
 
@@ -336,6 +338,8 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
+    cfg.alg = Configuration::Algorithm::LocalSearch;
+
     const int ReduceModelScaleIteration = 3;
     const int RandModelScaleIteration = 6;
     const int DefaultMoveCount = 2 - (rand() % 2);
@@ -417,6 +421,8 @@ bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
+    cfg.alg = Configuration::Algorithm::MathematicallProgramming;
+
     IrpModelSolver::Input originInput;
     convertToModelInput(originInput, input);
 
@@ -433,7 +439,7 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
         presetX.xEdge[v].resize(originInput.periodNum);
         for (int t = 0; t < originInput.periodNum; ++t) {
             cout << "\nSolving period " << t;
-            if (!initRoutingSolver(presetX.xEdge[v][t], bestObj, elapsedSeconds, presetX.xQuantity[v][t], originInput)) {
+            if (!generateInitRouting(presetX.xEdge[v][t], bestObj, elapsedSeconds, presetX.xQuantity[v][t], originInput)) {
                 cout << "Period " << t << " has not solved." << endl;
             }
         }
@@ -460,8 +466,6 @@ void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::I
 
     model.nodes.resize(model.nodeNum);
     for (auto i = problem.nodes().begin(); i != problem.nodes().end(); ++i) {
-        //model.nodes[i->id()].xPoint = i->x();
-        //model.nodes[i->id()].yPoint = i->y();
         model.nodes[i->id()].initialQuantity = i->initquantity();
         model.nodes[i->id()].capacity = i->capacity();
         model.nodes[i->id()].minLevel = i->minlevel();
@@ -548,7 +552,7 @@ bool Solver::getFixedPeriods(int periodNum, List<bool>& isPeriodFixed, int iter,
     return true;
 }
 
-bool Solver::initRoutingSolver(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const IrpModelSolver::Input inp) {
+bool Solver::generateInitRouting(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const IrpModelSolver::Input inp) {
     const int DefaultTimeLimit = 600;
 
     // if no delivery quantity in the period, return true.

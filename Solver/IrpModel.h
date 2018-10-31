@@ -25,8 +25,6 @@ public:
     using List2D = List<List<T>>;
 
     struct Node {
-        double xPoint;
-        double yPoint;
         int initialQuantity;
         int capacity;
         int minLevel;
@@ -44,11 +42,6 @@ public:
         double bestObjective;
         double referenceObjective;
     };
-
-    //struct Solution {
-    //    List2D<List<double>> deliveryQuantity;
-    //    List<double> costForPeriod;
-    //};
 
     struct PresetX {
         List<bool> isPeriodFixed;
@@ -75,7 +68,6 @@ public:
         initSolver();
     }
     IrpModelSolver(const Input &inp, bool useBenchmark = true) : input(inp), callback(*this), tspCallback(*this) {
-        //std::cout << "Solving " << "Instances_" + input.dirName + "\\" + input.instanceName << std::endl;
         cfg.useBenchmark = useBenchmark;
         initSolver();
     }
@@ -174,20 +166,6 @@ protected:
         } else {
             return;
         }
-        routingCost.resize(input.nodeNum);
-        for (ID i = 0; i < input.nodeNum; ++i) {
-            routingCost[i].resize(input.nodeNum);
-            for (ID j = 0; j < input.nodeNum; ++j) {
-                routingCost[i][j] = costOfEdge(input.nodes[i], input.nodes[j]);
-            }
-        }
-    }
-
-    double costOfEdge(Node i, Node j) {
-        double value = 0;
-        value = sqrt(pow(i.xPoint - j.xPoint, 2) + pow(i.yPoint - j.yPoint, 2));
-        value = round(value);
-        return value;
     }
 
     /*List<List<ID>> computeSubsets(List<ID> nodes) {
