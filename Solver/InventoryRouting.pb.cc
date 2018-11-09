@@ -237,6 +237,8 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Output, allroutes_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Output, routingcost_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting_Output, holidingcost_),
   ~0u,  // no _has_bits_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::InventoryRouting, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -304,13 +306,13 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
 static const ::google::protobuf::internal::MigrationSchema schemas[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::pb::InventoryRouting_Input)},
   { 11, -1, sizeof(::pb::InventoryRouting_Output)},
-  { 17, -1, sizeof(::pb::InventoryRouting)},
-  { 22, -1, sizeof(::pb::Node)},
-  { 35, -1, sizeof(::pb::Vehicle)},
-  { 42, -1, sizeof(::pb::Route)},
-  { 48, -1, sizeof(::pb::RoutesInPeriod)},
-  { 54, -1, sizeof(::pb::Delivery)},
-  { 61, -1, sizeof(::pb::Submission)},
+  { 19, -1, sizeof(::pb::InventoryRouting)},
+  { 24, -1, sizeof(::pb::Node)},
+  { 37, -1, sizeof(::pb::Vehicle)},
+  { 44, -1, sizeof(::pb::Route)},
+  { 50, -1, sizeof(::pb::RoutesInPeriod)},
+  { 56, -1, sizeof(::pb::Delivery)},
+  { 63, -1, sizeof(::pb::Submission)},
 };
 
 static ::google::protobuf::Message const * const file_default_instances[] = {
@@ -346,30 +348,31 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void AddDescriptorsImpl() {
   InitDefaults();
   static const char descriptor[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
-      "\n\026InventoryRouting.proto\022\002pb\"\326\001\n\020Invento"
+      "\n\026InventoryRouting.proto\022\002pb\"\201\002\n\020Invento"
       "ryRouting\032\220\001\n\005Input\022\021\n\tperiodNum\030\001 \001(\005\022\035"
       "\n\010vehicles\030\002 \003(\0132\013.pb.Vehicle\022\027\n\005nodes\030\003"
       " \003(\0132\010.pb.Node\022\017\n\007bestObj\030\004 \001(\001\022\024\n\014refer"
-      "enceObj\030\005 \001(\001\022\025\n\rreferenceTime\030\006 \001(\001\032/\n\006"
+      "enceObj\030\005 \001(\001\022\025\n\rreferenceTime\030\006 \001(\001\032Z\n\006"
       "Output\022%\n\tallRoutes\030\001 \003(\0132\022.pb.RoutesInP"
-      "eriod\"\214\001\n\004Node\022\n\n\002id\030\001 \001(\005\022\t\n\001x\030\002 \001(\001\022\t\n"
-      "\001y\030\003 \001(\001\022\024\n\014initQuantity\030\004 \001(\005\022\020\n\010capaci"
-      "ty\030\005 \001(\005\022\020\n\010minLevel\030\006 \001(\005\022\022\n\nunitDemand"
-      "\030\007 \001(\005\022\024\n\014holidingCost\030\010 \001(\001\"\'\n\007Vehicle\022"
-      "\n\n\002id\030\001 \001(\005\022\020\n\010capacity\030\002 \001(\005\")\n\005Route\022 "
-      "\n\ndeliveries\030\002 \003(\0132\014.pb.Delivery\"+\n\016Rout"
-      "esInPeriod\022\031\n\006routes\030\001 \003(\0132\t.pb.Route\"*\n"
-      "\010Delivery\022\014\n\004node\030\001 \001(\005\022\020\n\010quantity\030\002 \001("
-      "\005\"\350\001\n\nSubmission\022\016\n\006author\030\001 \001(\t\022\021\n\talgo"
-      "rithm\030\002 \001(\t\022\016\n\006thread\030\003 \001(\t\022\013\n\003cpu\030\004 \001(\t"
-      "\022\013\n\003ram\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\020\n\010compi"
-      "ler\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017\n\007problem\030\025 \001(\t\022\020"
-      "\n\010instance\030\026 \001(\t\022\020\n\010duration\030\027 \001(\t\022\013\n\003ob"
-      "j\030\037 \001(\001\022\r\n\005email\030  \001(\t\022\014\n\004date\030! \001(\tB\026\n\002"
-      "pbB\020InventoryRoutingb\006proto3"
+      "eriod\022\023\n\013routingCost\030\002 \001(\001\022\024\n\014holidingCo"
+      "st\030\003 \001(\001\"\214\001\n\004Node\022\n\n\002id\030\001 \001(\005\022\t\n\001x\030\002 \001(\001"
+      "\022\t\n\001y\030\003 \001(\001\022\024\n\014initQuantity\030\004 \001(\005\022\020\n\010cap"
+      "acity\030\005 \001(\005\022\020\n\010minLevel\030\006 \001(\005\022\022\n\nunitDem"
+      "and\030\007 \001(\005\022\024\n\014holidingCost\030\010 \001(\001\"\'\n\007Vehic"
+      "le\022\n\n\002id\030\001 \001(\005\022\020\n\010capacity\030\002 \001(\005\")\n\005Rout"
+      "e\022 \n\ndeliveries\030\002 \003(\0132\014.pb.Delivery\"+\n\016R"
+      "outesInPeriod\022\031\n\006routes\030\001 \003(\0132\t.pb.Route"
+      "\"*\n\010Delivery\022\014\n\004node\030\001 \001(\005\022\020\n\010quantity\030\002"
+      " \001(\005\"\350\001\n\nSubmission\022\016\n\006author\030\001 \001(\t\022\021\n\ta"
+      "lgorithm\030\002 \001(\t\022\016\n\006thread\030\003 \001(\t\022\013\n\003cpu\030\004 "
+      "\001(\t\022\013\n\003ram\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\020\n\010co"
+      "mpiler\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017\n\007problem\030\025 \001("
+      "\t\022\020\n\010instance\030\026 \001(\t\022\020\n\010duration\030\027 \001(\t\022\013\n"
+      "\003obj\030\037 \001(\001\022\r\n\005email\030  \001(\t\022\014\n\004date\030! \001(\tB"
+      "\026\n\002pbB\020InventoryRoutingb\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 828);
+      descriptor, 871);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "InventoryRouting.proto", &protobuf_RegisterTypes);
 }
@@ -814,6 +817,8 @@ void InventoryRouting_Output::InitAsDefaultInstance() {
 }
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int InventoryRouting_Output::kAllRoutesFieldNumber;
+const int InventoryRouting_Output::kRoutingCostFieldNumber;
+const int InventoryRouting_Output::kHolidingCostFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 InventoryRouting_Output::InventoryRouting_Output()
@@ -828,10 +833,16 @@ InventoryRouting_Output::InventoryRouting_Output(const InventoryRouting_Output& 
       _internal_metadata_(NULL),
       allroutes_(from.allroutes_) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::memcpy(&routingcost_, &from.routingcost_,
+    static_cast<size_t>(reinterpret_cast<char*>(&holidingcost_) -
+    reinterpret_cast<char*>(&routingcost_)) + sizeof(holidingcost_));
   // @@protoc_insertion_point(copy_constructor:pb.InventoryRouting.Output)
 }
 
 void InventoryRouting_Output::SharedCtor() {
+  ::memset(&routingcost_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&holidingcost_) -
+      reinterpret_cast<char*>(&routingcost_)) + sizeof(holidingcost_));
 }
 
 InventoryRouting_Output::~InventoryRouting_Output() {
@@ -863,6 +874,9 @@ void InventoryRouting_Output::Clear() {
   (void) cached_has_bits;
 
   allroutes_.Clear();
+  ::memset(&routingcost_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&holidingcost_) -
+      reinterpret_cast<char*>(&routingcost_)) + sizeof(holidingcost_));
   _internal_metadata_.Clear();
 }
 
@@ -882,6 +896,34 @@ bool InventoryRouting_Output::MergePartialFromCodedStream(
             static_cast< ::google::protobuf::uint8>(10u /* 10 & 0xFF */)) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadMessage(
                 input, add_allroutes()));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // double routingCost = 2;
+      case 2: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(17u /* 17 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &routingcost_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // double holidingCost = 3;
+      case 3: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(25u /* 25 & 0xFF */)) {
+
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
+                 input, &holidingcost_)));
         } else {
           goto handle_unusual;
         }
@@ -923,6 +965,16 @@ void InventoryRouting_Output::SerializeWithCachedSizes(
       output);
   }
 
+  // double routingCost = 2;
+  if (this->routingcost() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(2, this->routingcost(), output);
+  }
+
+  // double holidingCost = 3;
+  if (this->holidingcost() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(3, this->holidingcost(), output);
+  }
+
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         (::google::protobuf::internal::GetProto3PreserveUnknownsDefault()   ? _internal_metadata_.unknown_fields()   : _internal_metadata_.default_instance()), output);
@@ -943,6 +995,16 @@ void InventoryRouting_Output::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageToArray(
         1, this->allroutes(static_cast<int>(i)), deterministic, target);
+  }
+
+  // double routingCost = 2;
+  if (this->routingcost() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(2, this->routingcost(), target);
+  }
+
+  // double holidingCost = 3;
+  if (this->holidingcost() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(3, this->holidingcost(), target);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -973,6 +1035,16 @@ size_t InventoryRouting_Output::ByteSizeLong() const {
     }
   }
 
+  // double routingCost = 2;
+  if (this->routingcost() != 0) {
+    total_size += 1 + 8;
+  }
+
+  // double holidingCost = 3;
+  if (this->holidingcost() != 0) {
+    total_size += 1 + 8;
+  }
+
   int cached_size = ::google::protobuf::internal::ToCachedSize(total_size);
   SetCachedSize(cached_size);
   return total_size;
@@ -1001,6 +1073,12 @@ void InventoryRouting_Output::MergeFrom(const InventoryRouting_Output& from) {
   (void) cached_has_bits;
 
   allroutes_.MergeFrom(from.allroutes_);
+  if (from.routingcost() != 0) {
+    set_routingcost(from.routingcost());
+  }
+  if (from.holidingcost() != 0) {
+    set_holidingcost(from.holidingcost());
+  }
 }
 
 void InventoryRouting_Output::CopyFrom(const ::google::protobuf::Message& from) {
@@ -1028,6 +1106,8 @@ void InventoryRouting_Output::Swap(InventoryRouting_Output* other) {
 void InventoryRouting_Output::InternalSwap(InventoryRouting_Output* other) {
   using std::swap;
   CastToBase(&allroutes_)->InternalSwap(CastToBase(&other->allroutes_));
+  swap(routingcost_, other->routingcost_);
+  swap(holidingcost_, other->holidingcost_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
 }
 

@@ -86,7 +86,8 @@ public:
 
     // controls the I/O data format, exported contents and general usage of the solver.
     struct Configuration {
-        enum Algorithm { Greedy, TreeSearch, DynamicProgramming, LocalSearch, Genetic, MathematicallProgramming };
+        enum Algorithm { Greedy, TreeSearch, DynamicProgramming, LocalSearch, Genetic, MathematicallProgramming,
+        CompleteModel, RelaxInit, Decomposition };
 
 
         Configuration() {}
@@ -104,7 +105,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::Greedy; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::Decomposition; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -210,6 +211,7 @@ protected:
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
     bool generateInitRouting(List<List<bool>> &edges, double &obj, double &seconds, 
         const List<double> &quantity, const IrpModelSolver::Input inp);
+    void recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX);
 
     template<typename T>
     static T makeSureInRange(T val, T minVal, T maxVal) {

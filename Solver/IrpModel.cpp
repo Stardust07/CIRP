@@ -75,6 +75,19 @@ bool IrpModelSolver::solveIRPModel() {
             }
         }
     }
+
+    presetX.xVisited.resize(input.vehicleNum);
+    for (ID v = 0; v < input.vehicleNum; ++v) {
+        presetX.xVisited[v].resize(input.periodNum);
+        for (ID t = 0; t < input.periodNum; ++t) {
+            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+            presetX.xVisited[v][t].resize(input.nodeNum);
+            fill(presetX.xVisited[v][t].begin(), presetX.xVisited[v][t].end(), false);
+            for (ID i = 0; i < input.nodeNum; ++i) {
+                presetX.xVisited[v][t][i] = mpSolver.isTrue(x.xIsDelivered[v][t][i]);
+            }
+        }
+    }
     return true;
 }
 
@@ -101,6 +114,31 @@ bool IrpModelSolver::solveRoutingModel() {
                     presetX.xEdge[v][t][i][j] = mpSolver.isTrue(x.xEdge[v][t][i][j]);
 
                 }
+            }
+        }
+    }
+    return true;
+}
+
+bool IrpModelSolver::optimizeInventory() {
+    // 经过哪些点是确定的，优化库存 
+    addIRPVariables();
+    addNodeCapacityConstraint();
+    addQuantityConsistencyConstraint();
+    setHoldingCostObjective();
+
+    if (!mpSolver.optimize()) {
+        elapsedSeconds = mpSolver.getDurationInSecond();
+        return false;
+    }
+    presetX.xQuantity.resize(input.vehicleNum);
+    for (ID v = 0; v < input.vehicleNum; ++v) {
+        presetX.xQuantity[v].resize(input.periodNum);
+        for (ID t = 0; t < input.periodNum; ++t) {
+            presetX.xQuantity[v][t].resize(input.nodeNum);
+            fill(presetX.xQuantity[v][t].begin(), presetX.xQuantity[v][t].end(), 0);
+            for (ID i = 0; i < input.nodeNum; ++i) {
+                presetX.xQuantity[v][t][i] = mpSolver.getValue(x.xQuantity[v][t][i]);
             }
         }
     }
@@ -501,22 +539,52 @@ void IrpModelSolver::setInitSolution() {
 
 void IrpModelSolver::addIRPVariables() {
     x.xQuantity.resize(input.vehicleNum);
+    x.xIsDelivered.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xQuantity[v].resize(input.periodNum);
+        x.xIsDelivered[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
             x.xQuantity[v][t].resize(input.nodeNum);
+            x.xIsDelivered[v][t].resize(input.nodeNum);
+
             // load quantity at supplier is negative in irp model, positive otherwise.
             x.xQuantity[v][t][0] = mpSolver.makeVar(
                 MpSolver::VariableType::Real, -min(input.vehicleCapacity, input.nodes[0].capacity), 0);
+            x.xIsDelivered[v][t][0] = mpSolver.makeVar(MpSolver::VariableType::Bool);
             for (ID i = 1; i < input.nodeNum; ++i) {
-                x.xQuantity[v][t][i] = mpSolver.makeVar(
-                    MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
+                if (cfg.usePresetSolution && !presetX.xVisited[v][t][i]) {
+                    x.xQuantity[v][t][i] = mpSolver.makeVar(
+                        MpSolver::VariableType::Real, 0, 0);
+                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, 0, 0);
+                } else {
+                    x.xQuantity[v][t][i] = mpSolver.makeVar(
+                        MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
+                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool);
+                }
+            }
+        }
+    }
+    x.xMax = mpSolver.makeVar(MpSolver::VariableType::Real, 0, input.nodeNum);
+    // 每辆车每个周期最多访问21个客户.
+    for (ID v = 0; v < input.vehicleNum; ++v) {
+        for (ID t = 0; t < input.periodNum; ++t) {
+            MpSolver::LinearExpr visitedNode = 0;
+            for (ID i = 1; i < input.nodeNum; ++i) {
+                visitedNode += x.xIsDelivered[v][t][i];
+                mpSolver.makeConstraint(x.xQuantity[v][t][i] <= min(input.vehicleCapacity, input.nodes[i].capacity)* x.xIsDelivered[v][t][i]);
+                mpSolver.makeConstraint(x.xIsDelivered[v][t][i] <= x.xQuantity[v][t][i]);
+            }
+            
+            if (!cfg.usePresetSolution) {
+                mpSolver.makeConstraint(visitedNode <= x.xMax);
+                mpSolver.makeConstraint(x.xMax == 21);
             }
         }
     }
 }
 
 void IrpModelSolver::addNodeCapacityConstraint() {
+    // for customers.
     for (ID i = 1; i < input.nodeNum; ++i) {
         MpSolver::LinearExpr restQuantity = 0;
         restQuantity += input.nodes[i].initialQuantity;
@@ -529,6 +597,7 @@ void IrpModelSolver::addNodeCapacityConstraint() {
             mpSolver.makeConstraint(restQuantity >= input.nodes[i].minLevel);
         }
     }
+    // for supplier.
     MpSolver::LinearExpr restQuantity = 0;
     restQuantity += input.nodes[0].initialQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
@@ -553,6 +622,8 @@ void IrpModelSolver::addQuantityConsistencyConstraint() {
 }
 
 void IrpModelSolver::setHoldingCostObjective() {
+    const int ObjWeight = 0;
+
     MpSolver::LinearExpr totalCost = 0;
     MpSolver::LinearExpr restQuantity = input.nodes[0].initialQuantity;
     totalCost += input.nodes[0].holdingCost * restQuantity;
@@ -575,6 +646,7 @@ void IrpModelSolver::setHoldingCostObjective() {
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
     }
+    totalCost += x.xMax * ObjWeight;
 
     mpSolver.setObjective(totalCost, MpSolver::OptimaOrientation::Minimize);
 }

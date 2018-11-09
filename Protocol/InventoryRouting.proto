@@ -28,6 +28,8 @@ message InventoryRouting { // 求解算法输入输出数据接口.
 
   message Output { // 求解结果输出数据.
     repeated RoutesInPeriod allRoutes = 1; // routeLists[i] 表示周期 i 的所有配送路线.
+    double routingCost = 2;
+    double holidingCost = 3;
   }
 }
 

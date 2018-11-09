@@ -193,7 +193,8 @@ void Solver::record() const {
     int generation = 0;
 
     ostringstream log;
-
+    log.precision(2);
+    log.setf(std::ios::fixed);
     System::MemoryUsage mu = System::peakMemoryUsage();
 
     double obj = output.totalCost;
@@ -205,7 +206,7 @@ void Solver::record() const {
         << env.rid << ","
         << env.instPath << ","
         << feasible << "," << lround(obj - checkerObj) << ","
-        << output.totalCost << ","
+        << obj << ","
         << input.bestobj() << ","
         << input.referenceobj() << ","
         << timer.elapsedSeconds() << ","
@@ -213,7 +214,8 @@ void Solver::record() const {
         << mu.physicalMemory << "," << mu.virtualMemory << ","
         << env.randSeed << ","
         << cfg.toBriefStr() << ","
-        << generation << "," << iteration;
+        << generation << "," << iteration
+        << "," << checkerObj << "," << output.routingcost() << "(R)," << output.holidingcost() << "(H)";
 
     // record solution vector.
     // EXTEND[qym][2]: save solution in log.
@@ -292,16 +294,19 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     sln.totalCost = 0;
 
     // TODO[0]: replace the following random assignment with your own algorithm.
-    //solveWithCompleteModel(sln, true);
-    solveWithRelaxedInit(sln);
-    //solveWithDecomposition(sln);
+    switch (cfg.alg) {
+    case Configuration::Algorithm::RelaxInit:solveWithRelaxedInit(sln); break;
+    case Configuration::Algorithm::Decomposition:solveWithDecomposition(sln); break;
+    case Configuration::Algorithm::CompleteModel:
+    default:
+        solveWithCompleteModel(sln, true);
+        break;
+    }
 
     Log(LogSwitch::Szx::Framework) << "worker " << workerId << " ends." << endl;
     return status;
 }
 bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
-    cfg.alg = Configuration::Algorithm::MathematicallProgramming;
-
     IrpModelSolver modelSolver;
     if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
 
@@ -338,8 +343,6 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
-    cfg.alg = Configuration::Algorithm::LocalSearch;
-
     const int ReduceModelScaleIteration = 3;
     const int RandModelScaleIteration = 6;
     const int DefaultMoveCount = 2 - (rand() % 2);
@@ -421,20 +424,29 @@ bool Solver::solveWithRelaxedInit(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
-    cfg.alg = Configuration::Algorithm::MathematicallProgramming;
-
     IrpModelSolver::Input originInput;
     convertToModelInput(originInput, input);
 
+    // decide the delivery quantity at each customer in each period.
     IrpModelSolver irpSolver(originInput);
     irpSolver.routingCost = aux.routingCost;
     if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
     if (!irpSolver.solveIRPModel()) { return false; }
+    
+    //for (int v = 0; v < originInput.vehicleNum; ++v) {
+    //    for (int t = 0; t < originInput.periodNum; ++t) {
+    //        for (int i = 0; i < originInput.nodeNum; ++i) {
+    //            cout << irpSolver.presetX.xQuantity[v][t][i] << "\t";
+    //        }
+    //        cout << endl;
+    //    }
+    //}
     double bestObj = irpSolver.getObjValue();
     double elapsedSeconds = irpSolver.getDurationInSecond();
 
     IrpModelSolver::PresetX presetX(move(irpSolver.presetX));
     presetX.xEdge.resize(originInput.vehicleNum);
+    // initilize routing in each period as tsp.
     for (int v = 0; v < originInput.vehicleNum; ++v) {
         presetX.xEdge[v].resize(originInput.periodNum);
         for (int t = 0; t < originInput.periodNum; ++t) {
@@ -445,12 +457,33 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
         }
     }
 
+    recordSolution(originInput, presetX);
+                        
     // reverse quantity in supplier since it is positive in other models.
     for (int v = 0; v < originInput.vehicleNum; ++v) {
         for (int t = 0; t < originInput.periodNum; ++t) {
             presetX.xQuantity[v][t][0] = -presetX.xQuantity[v][t][0];
         }
     }
+
+    auto findMove = []() {
+        ;
+    };
+
+    // local search
+    {
+        int iter = 0;
+
+        while (iter < 10) {
+            // ÁÚÓò¶¯×÷
+            IrpModelSolver solver(originInput);
+            solver.presetX = presetX;
+            solver.enablePresetSolution();
+            solver.optimizeInventory();
+            ++iter;
+        }
+    }
+    
     sln.totalCost = bestObj;
     retrieveOutputFromModel(sln, presetX);
 
@@ -477,6 +510,15 @@ void Solver::convertToModelInput(IrpModelSolver::Input & model, const Problem::I
 }
 
 void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver::PresetX & presetX) {
+    // calculate routing cost and holding cost separately
+    double routingCost = 0;
+    double holdingCost = 0;
+
+    List<int> restQuantity(input.nodes_size(), 0);
+    for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
+        restQuantity[i->id()] = i->initquantity();
+        holdingCost += i->holidingcost() *  i->initquantity();
+    }
     auto &allRoutes(*sln.mutable_allroutes());
     for (ID p = 0; p < input.periodnum(); ++p) {
         auto &routeInPeriod(*allRoutes.Add());
@@ -491,17 +533,29 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
                     auto &delivery(*route.add_deliveries());
                     delivery.set_node(j);
                     delivery.set_quantity(lround(presetX.xQuantity[v][p][j]));
-
+                    
+                    routingCost += aux.routingCost[i][j];
                     if (j == 0) {
                         delivery.set_quantity(-lround(presetX.xQuantity[v][p][j]));
+                        restQuantity[j] -= lround(presetX.xQuantity[v][p][j]);
                         break;
+                    } else {
+                        restQuantity[j] += lround(presetX.xQuantity[v][p][j]);
                     }
+                    
                     i = j;
                     j = -1;
                 }
             }
         }
+        for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
+            restQuantity[i->id()] -= i->unitdemand();
+            holdingCost += i->holidingcost() * restQuantity[i->id()];
+        }
     }
+
+    sln.set_routingcost(routingCost);
+    sln.set_holidingcost(holdingCost);
 }
 
 bool Solver::getFixedPeriods(int periodNum, List<bool>& isPeriodFixed, int iter, List<int>& tabuTable, int totalMoveCount) {
@@ -604,6 +658,36 @@ bool Solver::generateInitRouting(List<List<bool>>& edges, double & obj, double &
         }
     }
     return true;
+}
+
+void Solver::recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX) {
+    for (int v = 0; v < input.vehicleNum; ++v) {
+        for (int t = 0; t < input.periodNum; ++t) {
+            for (int i = 0; i < input.nodeNum; ++i) {
+                if ((presetX.xQuantity[v][t][i] == 0 && presetX.xVisited[v][t][i]) 
+                    || (presetX.xQuantity[v][t][i] > 0 && !presetX.xVisited[v][t][i])) {
+                    cout << i << "\t" << presetX.xQuantity[v][t][i] << "\t" << presetX.xVisited[v][t][i] << endl;
+                }
+            }
+        }
+    }
+    ostringstream oss;
+    for (int i = 0; i < input.nodeNum; ++i) {
+        int q = input.nodes[i].initialQuantity;
+        oss << "node " << i << " (" << input.nodes[i].capacity << "): " << q << "\t";
+        for (int t = 0; t < input.periodNum; ++t) {
+            for (int v = 0; v < input.vehicleNum; ++v) {
+                oss << q << "+" << lround(presetX.xQuantity[v][t][i]);
+                q += lround(presetX.xQuantity[v][t][i]);
+            };
+            q -= (i > 0) ? input.nodes[i].unitDemand : -input.nodes[i].unitDemand;
+            oss << "-" << input.nodes[i].unitDemand << "=" << q << "\t";
+        }
+        oss << endl;
+    }
+    ofstream logFile("solution.txt", ios::app);
+    logFile << oss.str();
+    logFile.close();
 }
 #pragma endregion Solver
 

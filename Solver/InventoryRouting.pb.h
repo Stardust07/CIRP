@@ -340,11 +340,25 @@ class InventoryRouting_Output : public ::google::protobuf::Message /* @@protoc_i
   const ::google::protobuf::RepeatedPtrField< ::pb::RoutesInPeriod >&
       allroutes() const;
 
+  // double routingCost = 2;
+  void clear_routingcost();
+  static const int kRoutingCostFieldNumber = 2;
+  double routingcost() const;
+  void set_routingcost(double value);
+
+  // double holidingCost = 3;
+  void clear_holidingcost();
+  static const int kHolidingCostFieldNumber = 3;
+  double holidingcost() const;
+  void set_holidingcost(double value);
+
   // @@protoc_insertion_point(class_scope:pb.InventoryRouting.Output)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::RepeatedPtrField< ::pb::RoutesInPeriod > allroutes_;
+  double routingcost_;
+  double holidingcost_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_InventoryRouting_2eproto::TableStruct;
 };
@@ -1494,6 +1508,34 @@ inline const ::google::protobuf::RepeatedPtrField< ::pb::RoutesInPeriod >&
 InventoryRouting_Output::allroutes() const {
   // @@protoc_insertion_point(field_list:pb.InventoryRouting.Output.allRoutes)
   return allroutes_;
+}
+
+// double routingCost = 2;
+inline void InventoryRouting_Output::clear_routingcost() {
+  routingcost_ = 0;
+}
+inline double InventoryRouting_Output::routingcost() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Output.routingCost)
+  return routingcost_;
+}
+inline void InventoryRouting_Output::set_routingcost(double value) {
+  
+  routingcost_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Output.routingCost)
+}
+
+// double holidingCost = 3;
+inline void InventoryRouting_Output::clear_holidingcost() {
+  holidingcost_ = 0;
+}
+inline double InventoryRouting_Output::holidingcost() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Output.holidingCost)
+  return holidingcost_;
+}
+inline void InventoryRouting_Output::set_holidingcost(double value) {
+  
+  holidingcost_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Output.holidingCost)
 }
 
 // -------------------------------------------------------------------

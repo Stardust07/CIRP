@@ -48,6 +48,7 @@ public:
         List2D<List2D<bool>> xEdge;
         List2D<List<double>> xQuantity;
         List2D<List<double>> xSequence;
+        List2D<List<bool>> xVisited;
     };
     #pragma endregion Type
 
@@ -57,7 +58,7 @@ public:
     static constexpr auto DefaultObjectiveOptimaOrientation = MpSolver::OptimaOrientation::Minimize;
     static constexpr int MillisecondsPerSecond = 1000;
     static constexpr int DefaultTimeLimitSecond = 7200;
-    static constexpr int DefaultMaxThreadNum = 8;
+    static constexpr int DefaultMaxThreadNum = 4;
     static constexpr int DefaultSlideWindowSize = 3;
     static constexpr double DefaultDoubleGap = 0.001;
     #pragma endregion Constant
@@ -78,6 +79,7 @@ public:
     bool solve();
     bool solveIRPModel();
     bool solveRoutingModel();
+    bool optimizeInventory();
     void retrieveSolution();
 
     static void saveSolution(const Input &input, const PresetX &presetX, const std::string &path);
@@ -157,7 +159,7 @@ protected:
         } else {
             currentObjective = 0;
         }
-        //mpSolver.setOutput(false);
+        mpSolver.setOutput(cfg.enableMpOutput);
     }
     void initRoutingCost() {
         if (routingCost.empty()) { 
@@ -167,28 +169,6 @@ protected:
             return;
         }
     }
-
-    /*List<List<ID>> computeSubsets(List<ID> nodes) {
-        if (nodes.size() == 1) { return List<List<ID>>(1, List<ID>(1, nodes[0])); }
-
-        List<List<ID>> subSets;
-        List<ID> newSet(nodes);
-        for (ID i = 0; i < 1; ++i) {
-            newSet.erase(newSet.begin() + i);
-            List<List<ID>> res = computeSubsets(newSet);
-
-            for (auto j = res.begin(); j != res.end(); ++j) {
-                subSets.push_back(*j);
-                List<ID> list(*j);
-                list.push_back(nodes[i]);
-                subSets.push_back(list);
-            }
-
-            subSets.push_back({ nodes[i] });
-            newSet = nodes;
-        }
-        return subSets;
-    }*/
 
     void initSkipNodes(double prob = 0.75) {
         aux.skipNode = List2D<bool>(input.periodNum, List<bool>(input.nodeNum, false));
@@ -247,9 +227,10 @@ protected:
         bool optimizeTotalCost;
         bool usePresetSolution;
         bool forbidAllSubtours;
+        bool enableMpOutput;
 
         Configuration() :useLazyConstraints(true), useBenchmark(true), relaxMinlevel(false),
-            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true) {}
+            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(false){}
     } cfg;
 
     struct {
@@ -258,6 +239,8 @@ protected:
         List2D<List<MpSolver::DecisionVar>> xSequence;
         List<MpSolver::DecisionVar> xMinLevel;
         List<MpSolver::DecisionVar> xShortage;
+        List2D<List<MpSolver::DecisionVar>> xIsDelivered;
+        MpSolver::DecisionVar xMax;
     } x;
 
     struct {
