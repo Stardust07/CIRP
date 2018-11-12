@@ -443,6 +443,7 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
     //}
     double bestObj = irpSolver.getObjValue();
     double elapsedSeconds = irpSolver.getDurationInSecond();
+    double routingObj = 0;
 
     IrpModelSolver::PresetX presetX(move(irpSolver.presetX));
     presetX.xEdge.resize(originInput.vehicleNum);
@@ -451,12 +452,12 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
         presetX.xEdge[v].resize(originInput.periodNum);
         for (int t = 0; t < originInput.periodNum; ++t) {
             cout << "\nSolving period " << t;
-            if (!generateInitRouting(presetX.xEdge[v][t], bestObj, elapsedSeconds, presetX.xQuantity[v][t], originInput)) {
+            if (!generateInitRouting(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], originInput)) {
                 cout << "Period " << t << " has not solved." << endl;
             }
         }
     }
-
+    bestObj += routingObj;
     recordSolution(originInput, presetX);
                         
     // reverse quantity in supplier since it is positive in other models.
@@ -470,16 +471,121 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
         ;
     };
 
-    // local search
+     //local search
     {
+        List<List<List<int>>> tabuTable(originInput.periodNum);
+        for (int t = 0; t < originInput.periodNum; ++t) {
+            tabuTable[t].resize(originInput.nodeNum);
+            for (int i = 0; i < originInput.nodeNum; ++i) {
+                tabuTable[t][i].resize(2, -1);
+            }
+        }
+
         int iter = 0;
 
-        while (iter < 10) {
-            // 邻域动作
+        while (/*iter < 200*/bestObj - originInput.bestObjective > IrpModelSolver::DefaultDoubleGap) {
             IrpModelSolver solver(originInput);
-            solver.presetX = presetX;
+
+            IrpModelSolver::PresetX curPresetX(presetX);
+
+            // 邻域动作
+            //tabuTable[t][n][0] 从未访问变为访问
+            //tabuTable[t][n][1] 从访问变为未访问
+            {
+                for (int c = 0; c < 1; ++c) {
+                    int tabuLen = rand() % 5;
+                    while (true) {
+                        ID v = rand() % originInput.vehicleNum;
+                        ID t = rand() % (originInput.periodNum - 1);
+                        ID n = rand() % originInput.nodeNum;
+                        if (curPresetX.xVisited[v][t][n] == curPresetX.xVisited[v][t + 1][n]) { continue; }
+                        if ((curPresetX.xVisited[v][t][n] && (iter <= tabuTable[t][n][1]))
+                            || (!curPresetX.xVisited[v][t][n] && (iter <= tabuTable[t][n][0]))) {
+                            continue;
+                        }
+                        if ((curPresetX.xVisited[v][t + 1][n] && (iter <= tabuTable[t + 1][n][1]))
+                            || (!curPresetX.xVisited[v][t + 1][n] && (iter <= tabuTable[t + 1][n][0]))) {
+                            continue;
+                        }
+                        {
+                            // make move
+                            bool temp = curPresetX.xVisited[v][t][n];
+                            curPresetX.xVisited[v][t][n] = curPresetX.xVisited[v][t + 1][n];
+                            curPresetX.xVisited[v][t + 1][n] = temp;
+
+                            // set tabu table
+                            tabuTable[t][n][(curPresetX.xVisited[v][t][n] ? 1 : 0)] = iter + tabuLen + rand() % 2;
+                            tabuTable[t + 1][n][(curPresetX.xVisited[v][t + 1][n] ? 1 : 0)] = iter + tabuLen + rand() % 2;
+
+                            // update routing cost
+                            auto adjustRouting = [&](ID dt, ID it) {
+                                // delete a node from the path in period 
+                                bool breakFlag = false;
+                                for (ID i = 0; ((i < originInput.nodeNum) && !breakFlag); ++i) {
+                                    if (!curPresetX.xEdge[v][dt][i][n]) { continue; }
+                                    for (ID j = 0; ((j < originInput.nodeNum) && !breakFlag); ++j) {
+                                        if (!curPresetX.xEdge[v][dt][n][j]) { continue; }
+                                        curPresetX.xEdge[v][dt][i][j] = true;
+                                        curPresetX.xEdge[v][dt][i][n] = false;
+                                        curPresetX.xEdge[v][dt][n][j] = false;
+                                        routingObj = routingObj + aux.routingCost[i][j] - aux.routingCost[i][n] - aux.routingCost[n][j];
+                                        breakFlag = true;
+                                    }
+
+                                }
+                                // insert a node into the path in period it
+                                // 找到一对 ij ，在中间插入 n 使得开销增加最小
+                                ID u = 0, w = 0;
+                                int delta = INT32_MAX;
+                                ID i = 0;
+                                do {
+                                    for (ID j = 0; j < originInput.nodeNum; ++j) {
+                                        if (!curPresetX.xEdge[v][it][i][j]) { continue; }
+                                        if (aux.routingCost[i][n] + aux.routingCost[n][j] - aux.routingCost[i][j] < delta) {
+                                            delta = aux.routingCost[i][n] + aux.routingCost[n][j] - aux.routingCost[i][j];
+                                            u = i;
+                                            w = j;
+                                        }
+                                        i = j;
+                                        break;
+                                    }
+                                } while (i != 0);
+                                curPresetX.xEdge[v][it][u][n] = true;
+                                curPresetX.xEdge[v][it][n][w] = true;
+                                curPresetX.xEdge[v][it][u][w] = false;
+                                routingObj += delta;
+                            };
+
+                            if (curPresetX.xVisited[v][t][n]) {
+                                adjustRouting(t + 1, t);
+                            } else {
+                                adjustRouting(t, t + 1);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+            
+            solver.presetX = curPresetX;
             solver.enablePresetSolution();
-            solver.optimizeInventory();
+            solver.routingCost = aux.routingCost;
+            if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
+            if (!solver.optimizeInventory()) { continue; }
+
+            curPresetX.xQuantity = solver.presetX.xQuantity;
+            double obj = solver.getObjValue();
+            double duration = solver.getDurationInSecond();
+
+            if (obj + routingObj < bestObj) {
+                bestObj = obj + routingObj;
+                presetX = curPresetX;
+            }
+            //recordSolution(originInput, presetX);
+            ofstream logFile("solution.txt", ios::app);
+            logFile << iter << ":\t" << bestObj << endl;
+            logFile.close();
             ++iter;
         }
     }
@@ -672,19 +778,28 @@ void Solver::recordSolution(const IrpModelSolver::Input input, const IrpModelSol
         }
     }
     ostringstream oss;
+    double x = 0;
     for (int i = 0; i < input.nodeNum; ++i) {
+        double cost = 0;
         int q = input.nodes[i].initialQuantity;
-        oss << "node " << i << " (" << input.nodes[i].capacity << "): " << q << "\t";
+        cost += input.nodes[i].holdingCost * q;
+        //oss << "node " << i << " (" << input.nodes[i].capacity << "): " << q << "\t";
+        oss << "node " << i << " (" << input.nodes[i].capacity << "):\t " << q << "\t";
         for (int t = 0; t < input.periodNum; ++t) {
             for (int v = 0; v < input.vehicleNum; ++v) {
-                oss << q << "+" << lround(presetX.xQuantity[v][t][i]);
+                //oss << q << "+" << lround(presetX.xQuantity[v][t][i]);
                 q += lround(presetX.xQuantity[v][t][i]);
             };
             q -= (i > 0) ? input.nodes[i].unitDemand : -input.nodes[i].unitDemand;
-            oss << "-" << input.nodes[i].unitDemand << "=" << q << "\t";
+            cost += input.nodes[i].holdingCost * q;
+            //oss << "-" << input.nodes[i].unitDemand << "=" << q << "\t";
+            oss << q << "\t";
         }
+        oss << "/" << cost;
+        x += cost;
         oss << endl;
     }
+    oss << x << endl;
     ofstream logFile("solution.txt", ios::app);
     logFile << oss.str();
     logFile.close();

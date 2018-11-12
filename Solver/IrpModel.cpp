@@ -552,13 +552,12 @@ void IrpModelSolver::addIRPVariables() {
                 MpSolver::VariableType::Real, -min(input.vehicleCapacity, input.nodes[0].capacity), 0);
             x.xIsDelivered[v][t][0] = mpSolver.makeVar(MpSolver::VariableType::Bool);
             for (ID i = 1; i < input.nodeNum; ++i) {
-                if (cfg.usePresetSolution && !presetX.xVisited[v][t][i]) {
-                    x.xQuantity[v][t][i] = mpSolver.makeVar(
-                        MpSolver::VariableType::Real, 0, 0);
-                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, 0, 0);
+                x.xQuantity[v][t][i] = mpSolver.makeVar(
+                    MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
+                if (cfg.usePresetSolution) {
+                    double value = (presetX.xVisited[v][t][i] ? 1 : 0);
+                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, value, value);
                 } else {
-                    x.xQuantity[v][t][i] = mpSolver.makeVar(
-                        MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
                     x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool);
                 }
             }
@@ -578,7 +577,7 @@ void IrpModelSolver::addIRPVariables() {
             if (!cfg.usePresetSolution) {
                 mpSolver.makeConstraint(visitedNode <= x.xMax);
                 mpSolver.makeConstraint(x.xMax == 21);
-            }
+            } 
         }
     }
 }

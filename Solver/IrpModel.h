@@ -230,7 +230,7 @@ protected:
         bool enableMpOutput;
 
         Configuration() :useLazyConstraints(true), useBenchmark(true), relaxMinlevel(false),
-            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(false){}
+            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(true){}
     } cfg;
 
     struct {
