@@ -21,6 +21,7 @@
 #include "LogSwitch.h"
 #include "Problem.h"
 #include "IrpModel.h"
+#include "TabuSolver.h"
 
 
 namespace szx {
@@ -87,7 +88,7 @@ public:
     // controls the I/O data format, exported contents and general usage of the solver.
     struct Configuration {
         enum Algorithm { Greedy, TreeSearch, DynamicProgramming, LocalSearch, Genetic, MathematicallProgramming,
-        CompleteModel, RelaxInit, Decomposition };
+        CompleteModel, RelaxInit, Decomposition, Analysis };
 
 
         Configuration() {}
@@ -105,7 +106,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::Decomposition; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::CompleteModel; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -202,14 +203,19 @@ protected:
     bool optimize(Solution &sln, ID workerId = 0); // optimize by a single worker.
 
     bool solveWithCompleteModel(Solution &sln, bool findFeasibleFirst = false);
+    bool solveWithTSPRelaxed(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithRelaxedInit(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithDecomposition(Solution &sln, bool findFeasibleFirst = false);
+    void analyzeSolution();
 
+    // i/o convertion.
     void convertToModelInput(IrpModelSolver::Input &model, const Problem::Input &problem);
     void retrieveOutputFromModel(Problem::Output &sln, const IrpModelSolver::PresetX &presetX);
+    void solutionToPresetX(IrpModelSolver::PresetX &presetX, const Problem::Output &sln);
 
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
-    bool generateInitRouting(List<List<bool>> &edges, double &obj, double &seconds, 
+    // solve tsp model.
+    bool generateRouting(List<List<bool>> &edges, double &obj, double &seconds, 
         const List<double> &quantity, const IrpModelSolver::Input inp);
     void recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX);
 

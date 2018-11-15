@@ -21,7 +21,8 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{6F05DAC1-4FEF-4D11-B177-4FB26A217AE8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>Simulator</RootNamespace>  </PropertyGroup>
+    <RootNamespace>Simulator</RootNamespace>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -178,6 +179,7 @@
     <ClInclude Include="..\Solver\PbReader.h" />
     <ClInclude Include="..\Solver\Problem.h" />
     <ClInclude Include="..\Solver\Solver.h" />
+    <ClInclude Include="..\Solver\TabuSolver.h" />
     <ClInclude Include="..\Solver\Utility.h" />
     <ClInclude Include="Simulator.h" />
     <ClInclude Include="ThreadPool.h" />
@@ -188,6 +190,7 @@
     <ClCompile Include="..\Solver\IrpModel.cpp" />
     <ClCompile Include="..\Solver\MpSolverGurobi.cpp" />
     <ClCompile Include="..\Solver\Solver.cpp" />
+    <ClCompile Include="..\Solver\TabuSolver.cpp" />
     <ClCompile Include="..\Solver\Utility.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Simulator.cpp" />

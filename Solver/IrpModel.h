@@ -15,6 +15,7 @@
 #include "Common.h"
 #include "MpSolverGurobi.h"
 
+
 namespace szx {
 
 class IrpModelSolver {
@@ -91,6 +92,7 @@ public:
     MpSolver::LinearExpr restQuantityUntilPeriod(ID node, int size);
     MpSolver::LinearExpr totalShortageQuantity();
 
+    double getHoldingCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(holdingCostInPeriod(start, size, addInitial)); }
     double getCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(totalCostInPeriod(start, size, addInitial)); }
     double getRestQuantityUntilPeriod(ID node, int size) { return mpSolver.getValue(restQuantityUntilPeriod(node, size)); }
     double getQuantity(ID v, ID t, ID n) { return mpSolver.getValue(x.xQuantity[v][t][n]); }
@@ -163,7 +165,7 @@ protected:
     }
     void initRoutingCost() {
         if (routingCost.empty()) { 
-            std::cout << "Init routing cost!" << std::endl;
+            std::cout << "greedyInit routing cost!" << std::endl;
             int x; std::cin >> x;
         } else {
             return;

@@ -48,6 +48,7 @@ public:
             ofs << protobufToJson(submission, false) << std::endl << protobufToJson(*this);
             return true;
         }
+        bool load(const String &path) { return pb::load(path, *this); }
 
         Price totalCost = 0;
     };

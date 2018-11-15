@@ -57,6 +57,9 @@
     <ClInclude Include="IrpModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TabuSolver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -78,6 +81,9 @@
       <Filter>MpSolver</Filter>
     </ClCompile>
     <ClCompile Include="IrpModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TabuSolver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

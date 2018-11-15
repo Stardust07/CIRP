@@ -49,11 +49,13 @@ bool IrpModelSolver::solve() {
     }
     retrieveSolution();
 
-    return check();
+    return true;
+    //return check();
 }
 
 bool IrpModelSolver::solveIRPModel() {
     initRoutingCost();
+    initSkipNodes();
 
     addIRPVariables();
     addNodeCapacityConstraint();
@@ -177,6 +179,7 @@ void IrpModelSolver::retrieveSolution() {
     //        cout << endl;
     //    }
     //}
+    cout << "HC=" << getHoldingCostInPeriod(0, input.periodNum) << endl;
     presetX.xEdge.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xEdge[v].resize(input.periodNum);
@@ -548,10 +551,7 @@ void IrpModelSolver::addIRPVariables() {
             x.xIsDelivered[v][t].resize(input.nodeNum);
 
             // load quantity at supplier is negative in irp model, positive otherwise.
-            x.xQuantity[v][t][0] = mpSolver.makeVar(
-                MpSolver::VariableType::Real, -min(input.vehicleCapacity, input.nodes[0].capacity), 0);
-            x.xIsDelivered[v][t][0] = mpSolver.makeVar(MpSolver::VariableType::Bool);
-            for (ID i = 1; i < input.nodeNum; ++i) {
+            for (ID i = 0; i < input.nodeNum; ++i) {
                 x.xQuantity[v][t][i] = mpSolver.makeVar(
                     MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
                 if (cfg.usePresetSolution) {
@@ -575,11 +575,18 @@ void IrpModelSolver::addIRPVariables() {
             }
             
             if (!cfg.usePresetSolution) {
-                mpSolver.makeConstraint(visitedNode <= x.xMax);
-                mpSolver.makeConstraint(x.xMax == 21);
-            } 
+                //mpSolver.makeConstraint(visitedNode <= x.xMax);
+                //mpSolver.makeConstraint(x.xMax == 21);
+            }
         }
     }
+    //for (ID v = 0; v < input.vehicleNum; ++v) {
+    //    for (ID i = 0; i < input.nodeNum; ++i) {
+    //        for (ID t = 0; t < input.periodNum - 1; ++t) {
+    //            mpSolver.makeConstraint(x.xIsDelivered[v][t][i] + x.xIsDelivered[v][t + 1][i] <= 1);
+    //        }
+    //    }
+    //}
 }
 
 void IrpModelSolver::addNodeCapacityConstraint() {
@@ -601,7 +608,7 @@ void IrpModelSolver::addNodeCapacityConstraint() {
     restQuantity += input.nodes[0].initialQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            restQuantity += x.xQuantity[v][t][0];
+            restQuantity -= x.xQuantity[v][t][0];
         }
         restQuantity += input.nodes[0].unitDemand;
         mpSolver.makeConstraint(restQuantity >= input.nodes[0].minLevel);
@@ -611,8 +618,8 @@ void IrpModelSolver::addNodeCapacityConstraint() {
 void IrpModelSolver::addQuantityConsistencyConstraint() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            MpSolver::LinearExpr expr = 0;
-            for (ID i = 0; i < input.nodeNum; ++i) {
+            MpSolver::LinearExpr expr = -x.xQuantity[v][t][0];
+            for (ID i = 1; i < input.nodeNum; ++i) {
                 expr += x.xQuantity[v][t][i];
             }
             mpSolver.makeConstraint(expr == 0);
@@ -628,7 +635,7 @@ void IrpModelSolver::setHoldingCostObjective() {
     totalCost += input.nodes[0].holdingCost * restQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            restQuantity += x.xQuantity[v][t][0];
+            restQuantity -= x.xQuantity[v][t][0];
         }
         restQuantity += input.nodes[0].unitDemand;
         totalCost += input.nodes[0].holdingCost * restQuantity;
@@ -645,7 +652,17 @@ void IrpModelSolver::setHoldingCostObjective() {
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
     }
+
+    MpSolver::LinearExpr estimatedRoutingCost = 0;
+    for (ID i = 1; i < input.nodeNum; ++i) {
+        for (ID t = 0; t < input.periodNum; ++t) {
+            for (ID v = 0; v < input.vehicleNum; ++v) {
+                estimatedRoutingCost += (routingCost[0][i] + routingCost[i][0]) * x.xIsDelivered[v][t][i];
+            }
+        }
+    }
     totalCost += x.xMax * ObjWeight;
+    totalCost = estimatedRoutingCost;
 
     mpSolver.setObjective(totalCost, MpSolver::OptimaOrientation::Minimize);
 }
@@ -942,7 +959,8 @@ void IrpModelSolver::SolutionFound::callback() {
         if (where == GRB_CB_MIPSOL) {
             bool subtourFound = false;
             if (solver.cfg.useLazyConstraints) {
-                subtourFound = eliminateSubtour();
+                //subtourFound = eliminateSubtour();
+                subtourFound = false;
             }
             if (subtourFound) { return; }
 
