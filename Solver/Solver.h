@@ -106,7 +106,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::CompleteModel; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::Analysis; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -123,6 +123,7 @@ public:
         static String DefaultInstanceDir() { return "Instance/"; }
         static String DefaultSolutionDir() { return "Solution/"; }
         static String DefaultVisualizationDir() { return "Visualization/"; }
+        static String DefaultAnalysisDir() { return "Analysis/"; }
         static String DefaultEnvPath() { return "env.csv"; }
         static String DefaultCfgPath() { return "cfg.csv"; }
         static String DefaultLogPath() { return "log.csv"; }
@@ -146,6 +147,8 @@ public:
         String solutionPathWithTime() const { return slnPath + "." + localTime; }
 
         String visualizPath() const { return DefaultVisualizationDir() + friendlyInstName() + "." + localTime + ".html"; }
+        String analysisPath() const { return DefaultAnalysisDir() + friendlyInstName() + ".csv"; }
+
         template<typename T>
         String visualizPath(const T &msg) const { return DefaultVisualizationDir() + friendlyInstName() + "." + localTime + "." + std::to_string(msg) + ".html"; }
         String friendlyInstName() const { // friendly to file system (without special char).

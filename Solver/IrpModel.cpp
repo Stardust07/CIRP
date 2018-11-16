@@ -662,7 +662,7 @@ void IrpModelSolver::setHoldingCostObjective() {
         }
     }
     totalCost += x.xMax * ObjWeight;
-    totalCost = estimatedRoutingCost;
+    //totalCost = estimatedRoutingCost;
 
     mpSolver.setObjective(totalCost, MpSolver::OptimaOrientation::Minimize);
 }

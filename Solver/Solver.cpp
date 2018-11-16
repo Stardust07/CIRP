@@ -332,25 +332,29 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
     modelSolver.routingCost = aux.routingCost;
 
     if (!modelSolver.solve()) { return false; }
-
-    IrpModelSolver::PresetX presetX(modelSolver.presetX);
-    double bestObj = modelSolver.getHoldingCostInPeriod(0, input.periodnum());
+    
+    IrpModelSolver::PresetX &presetX(modelSolver.presetX);
+    double holdingObj = modelSolver.getHoldingCostInPeriod(0, input.periodnum());
     double elapsedSeconds = modelSolver.getDurationInSecond();
     double routingObj = 0;
 
-    presetX.xEdge.resize(input.vehicles_size());
     // initilize routing in each period as tsp.
     for (int v = 0; v < input.vehicles_size(); ++v) {
-        presetX.xEdge[v].resize(input.periodnum());
         for (int t = 0; t < input.periodnum(); ++t) {
+            for (int i = 0; i < input.nodes_size(); ++i) {
+                for (int j = 0; j < input.nodes_size(); ++j) {
+                    presetX.xEdge[v][t][i][j] = false;
+                }
+            }
             cout << "\nSolving period " << t;
             if (!generateRouting(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], modelSolver.input)) {
                 cout << "Period " << t << " has not solved." << endl;
+                return false;
             }
         }
     }
-    bestObj += routingObj;
     //recordSolution(originInput, presetX);
+    cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
 
     ostringstream oss;
     for (ID t = 0; t < input.periodnum(); ++t) {
@@ -359,18 +363,17 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
 
             List<bool> visited(input.nodes_size(), false);
             ID i = 0;
-            visited[i] = true;
             if (presetX.xQuantity[v][t][0] > IrpModelSolver::DefaultDoubleGap) {
                 while (true) {
                     for (ID j = 0; j < input.nodes_size(); ++j) {
                         if (i == j) { continue; }
-                        if (!presetX.xEdge[v][t][i][j]) { continue; }
+                        if (visited[j] || !presetX.xEdge[v][t][i][j]) { continue; }
                         if (i == 0) { oss << i << ","; }
                         i = j;
-                        visited[i] = true;
                         oss << i << ",";
                         break;
                     }
+                    visited[i] = true;
                     if (i == 0) { oss << endl; break; }
                 }
             }
@@ -393,16 +396,15 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
                     if (i == u) { oss << endl; break; }
                 }
             }
-
             oss << endl;
         }
     }
-    ofstream ofs("sss.csv");
+    ofstream ofs(env.solutionPathWithTime() + ".path");
     ofs << oss.str();
     ofs.close();
 
     // record solution.
-    sln.totalCost = modelSolver.getCostInPeriod(0, input.periodnum());
+    sln.totalCost = holdingObj + routingObj;
     retrieveOutputFromModel(sln, modelSolver.presetX);
 
     return true;
@@ -657,58 +659,117 @@ bool Solver::solveWithDecomposition(Solution & sln, bool findFeasibleFirst) {
 }
 
 void Solver::analyzeSolution() {
-    ostringstream oss;
+    Problem::Output sln;
+    if (!sln.load(env.DefaultAnalysisDir() + "Solution/" + env.friendlyInstName())) { return; }
 
-    //Problem::Output sln;
-    ////if (!sln.load(env.DefaultSolutionDir() + "Instances_large_lowcost/" + "abs2n50.json")) { returnd; }
-    //if (!sln.load(env.slnPath)) { return; }
-
-    //List<List<int>> visitedTimes(input.nodes_size());
-
-    //auto routes = sln.mutable_allroutes();
-    //ID pid = 0;
-    //for (auto r = routes->begin(); r != routes->end(); ++r, ++pid) {
-    //    auto deliveries = r->routes().begin()->deliveries(); // only one vehicle
-    //    for (auto d = deliveries.begin(); d != deliveries.end(); ++d) {
-    //        visitedTimes[d->node()].push_back(pid);
-    //    }
-    //    //oss << deliveries.size() << "\t";
-    //}
-    ////oss << endl << endl;
-    //oss << "Node,Init,Unit,Capacity,Period,MinPeriod,,Solution";
-    //for (ID i = 0; i < input.nodes_size(); ++i) {
-    //    oss << i << ",";
-    //    oss << input.nodes()[i].initquantity() << ","
-    //        << input.nodes()[i].unitdemand() << ","
-    //        << input.nodes()[i].capacity() << ",";
-    //    oss << input.nodes()[i].initquantity() / input.nodes()[i].unitdemand() << ","; //最迟第几个周期需要送货
-    //    oss << ceil(double(input.nodes()[i].unitdemand() * 6 - input.nodes()[i].initquantity()) / input.nodes()[i].capacity()) << ",,";
-    //    oss << visitedTimes[i].size() << ",";
-    //    for (auto j = visitedTimes[i].begin(); j != visitedTimes[i].end(); ++j) {
-    //        oss << *j << ",";
-    //    }
-    //    oss << endl;
-    //}
-
-    for (ID i = 0; i < input.nodes_size(); ++i) {
-        oss << "," << i;
-    }
-    oss << endl;
-    for (ID i = 1; i < input.nodes_size(); ++i) {
-        int minCost = aux.routingCost[0][i];
-        oss << i << "," << aux.routingCost[0][i];
-        for (ID j = 1; j < input.nodes_size(); ++j) {
-            if (i == j) { oss << ","; continue; }
-            oss << "," << (aux.routingCost[0][j] + aux.routingCost[j][i]);
-            minCost = (aux.routingCost[0][j] + aux.routingCost[j][i]) < minCost ? (aux.routingCost[0][j] + aux.routingCost[j][i]) : minCost;
+    List<List<int>> visitedTimes(input.nodes_size());
+    List<List<int>> deliveredQuantity(input.nodes_size(), List<int>(input.periodnum(), 0));
+    List<List<int>> preNode(input.nodes_size(), List<int>(input.periodnum(), -1));
+    List<List<int>> sufNode(input.nodes_size(), List<int>(input.periodnum(), -1));
+    {
+        // content for log file.
+        ostringstream oss;
+        oss << env.instPath << ",";
+        auto routes = sln.mutable_allroutes();
+        ID pid = 0;
+        for (auto r = routes->begin(); r != routes->end(); ++r, ++pid) {
+            auto deliveries = r->routes().begin()->deliveries(); // only one vehicle
+            oss << (deliveries.size() - 1) << ",";
+            ID pre = 0;
+            for (auto d = deliveries.begin(); d != deliveries.end(); ++d) {
+                visitedTimes[d->node()].push_back(pid);
+                deliveredQuantity[d->node()][pid] = d->quantity();
+                preNode[d->node()][pid] = pre;
+                sufNode[pre][pid] = d->node();
+                pre = d->node();
+            }
         }
-        oss << "," << (minCost) << endl;
+        for (ID i = 1; i < input.nodes_size(); ++i) {
+            oss << "," << visitedTimes[i].size();
+        }
+        oss << endl;
+
+        ofstream logFile("analysis.csv", ios::app);
+        logFile.seekp(0, ios::end);
+        if (logFile.tellp() <= 0) {
+            logFile << "Instance";
+            for (ID i = 0; i < input.periodnum(); ++i) {
+                logFile << ",Period " << i;
+            }
+            logFile << ",Node";
+            for (ID i = 1; i < input.nodes_size(); ++i) {
+                logFile << ",Node " << i;
+            }
+            logFile << endl;
+        }
+        logFile << oss.str();
+        logFile.close();
     }
 
-    ofstream ofs("analysis.csv");
-    ofs << oss.str();
-    ofs.close();
-    cout << oss.str();
+    {
+        // content for single analysis file.
+        ostringstream oss;
+        //oss << "Node,Init,Unit,Capacity,LatePeriod,MinPeriod,Solution\n";
+        oss << "Node,初始,消耗,容量,最晚周期,最少周期,实际周期,提前配送,超额配送";
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            oss << ",Period " << t << ",,";
+        }
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            oss << ",Period " << t;
+        }
+        oss << endl;
+        for (ID i = 0; i < input.nodes_size(); ++i) {
+            ID latestPeriod = input.nodes()[i].initquantity() / input.nodes()[i].unitdemand(); //最迟第几个周期需要送货
+            int leastDeliveryNum = ceil(double(input.nodes()[i].unitdemand() * 6 - input.nodes()[i].initquantity()) / input.nodes()[i].capacity());
+            oss << i << ",";
+            oss << input.nodes()[i].initquantity() << ","
+                << input.nodes()[i].unitdemand() << ","
+                << input.nodes()[i].capacity() << ","
+                << latestPeriod << ","
+                << leastDeliveryNum << ","
+                << visitedTimes[i].size() << ",";
+            oss << (visitedTimes[i][0] - latestPeriod) << ","
+                << (visitedTimes[i].size() - leastDeliveryNum) << ",";
+            //for (auto j = visitedTimes[i].begin(); j != visitedTimes[i].end(); ++j) {
+            //    oss << *j << ",";
+            //}
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                oss << preNode[i][t] << "," << sufNode[i][t] << ",";
+                if (preNode[i][t] >= 0 && sufNode[i][t] >= 0) {
+                    oss << aux.routingCost[preNode[i][t]][i] + aux.routingCost[i][sufNode[i][t]] << ",";
+                } else {
+                    oss << ",";
+                }
+            }
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                oss << deliveredQuantity[i][t] << ",";
+            }
+            oss << endl;
+        }
+
+        ofstream ofs(env.analysisPath());
+        ofs << oss.str();
+        ofs.close();
+    }
+
+
+    //// analyze routing cost between nodes.
+    //for (ID i = 0; i < input.nodes_size(); ++i) {
+    //    oss << "," << i;
+    //}
+    //oss << endl;
+    //for (ID i = 1; i < input.nodes_size(); ++i) {
+    //    int minCost = aux.routingCost[0][i];
+    //    oss << i << "," << aux.routingCost[0][i];
+    //    for (ID j = 1; j < input.nodes_size(); ++j) {
+    //        if (i == j) { oss << ","; continue; }
+    //        oss << "," << (aux.routingCost[0][j] + aux.routingCost[j][i]);
+    //        minCost = (aux.routingCost[0][j] + aux.routingCost[j][i]) < minCost ? (aux.routingCost[0][j] + aux.routingCost[j][i]) : minCost;
+    //    }
+    //    oss << "," << (minCost) << endl;
+    //}
+
+        
     cout << endl;
 }
 
@@ -735,11 +796,13 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
     // calculate routing cost and holding cost separately
     double routingCost = 0;
     double holdingCost = 0;
+    List<double> hc(input.nodes_size(), 0);
 
     List<int> restQuantity(input.nodes_size(), 0);
     for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
         restQuantity[i->id()] = i->initquantity();
         holdingCost += i->holidingcost() *  i->initquantity();
+        hc[i->id()] += i->holidingcost() *  i->initquantity();
     }
     auto &allRoutes(*sln.mutable_allroutes());
     for (ID p = 0; p < input.periodnum(); ++p) {
@@ -773,6 +836,7 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
         for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
             restQuantity[i->id()] -= i->unitdemand();
             holdingCost += i->holidingcost() * restQuantity[i->id()];
+            hc[i->id()] += i->holidingcost() * restQuantity[i->id()];
         }
     }
 
