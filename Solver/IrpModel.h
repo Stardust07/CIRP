@@ -118,6 +118,10 @@ public:
     void setFindFeasiblePreference() { mpSolver.setFocus(1); }
     void enableRelaxMinLevel() { cfg.relaxMinlevel = true; }
     void setTimeLimitInSecond(int second) { mpSolver.setTimeLimitInSecond(second); }
+    void relaxTspSubtourConstraint() { 
+        cfg.allowSubtour = true;
+        cfg.useBenchmark = false;
+    }
 
 protected:
     bool check();
@@ -226,13 +230,14 @@ protected:
         bool useLazyConstraints;
         bool useBenchmark;
         bool relaxMinlevel;
+        bool allowSubtour;
         bool optimizeTotalCost;
         bool usePresetSolution;
         bool forbidAllSubtours;
         bool enableMpOutput;
 
-        Configuration() :useLazyConstraints(true), useBenchmark(true), relaxMinlevel(false),
-            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(true){}
+        Configuration() :useLazyConstraints(true), useBenchmark(true), relaxMinlevel(false), allowSubtour(false),
+            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(true) {}
     } cfg;
 
     struct {

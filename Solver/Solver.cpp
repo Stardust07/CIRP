@@ -330,7 +330,7 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
 
     convertToModelInput(modelSolver.input, input);
     modelSolver.routingCost = aux.routingCost;
-
+    modelSolver.relaxTspSubtourConstraint();
     if (!modelSolver.solve()) { return false; }
     
     IrpModelSolver::PresetX &presetX(modelSolver.presetX);

@@ -26,7 +26,7 @@ bool IrpModelSolver::solve() {
     if (!cfg.useLazyConstraints) {
         addSubtourEliminationConstraint();
     }
-    if (cfg.useBenchmark || cfg.useLazyConstraints) {
+    if (cfg.useBenchmark || (cfg.useLazyConstraints && !cfg.allowSubtour)) {
         setSubTourCallback();
     }
     if (cfg.usePresetSolution) {
@@ -54,6 +54,7 @@ bool IrpModelSolver::solve() {
 }
 
 bool IrpModelSolver::solveIRPModel() {
+    cfg.useBenchmark = false;
     initRoutingCost();
     initSkipNodes();
 
@@ -94,6 +95,7 @@ bool IrpModelSolver::solveIRPModel() {
 }
 
 bool IrpModelSolver::solveRoutingModel() {
+    cfg.useBenchmark = false;
     initRoutingCost();
 
     addRoutingVariables();
@@ -573,20 +575,13 @@ void IrpModelSolver::addIRPVariables() {
                 mpSolver.makeConstraint(x.xQuantity[v][t][i] <= min(input.vehicleCapacity, input.nodes[i].capacity)* x.xIsDelivered[v][t][i]);
                 mpSolver.makeConstraint(x.xIsDelivered[v][t][i] <= x.xQuantity[v][t][i]);
             }
-            
+
             if (!cfg.usePresetSolution) {
                 //mpSolver.makeConstraint(visitedNode <= x.xMax);
                 //mpSolver.makeConstraint(x.xMax == 21);
             }
         }
     }
-    //for (ID v = 0; v < input.vehicleNum; ++v) {
-    //    for (ID i = 0; i < input.nodeNum; ++i) {
-    //        for (ID t = 0; t < input.periodNum - 1; ++t) {
-    //            mpSolver.makeConstraint(x.xIsDelivered[v][t][i] + x.xIsDelivered[v][t + 1][i] <= 1);
-    //        }
-    //    }
-    //}
 }
 
 void IrpModelSolver::addNodeCapacityConstraint() {
@@ -651,6 +646,17 @@ void IrpModelSolver::setHoldingCostObjective() {
             restQuantity -= input.nodes[i].unitDemand;
             totalCost += input.nodes[i].holdingCost * restQuantity;
         }
+    }
+
+    for (ID i = 1; i < input.nodeNum; ++i) {
+        int leastDeliveryNum = ceil(double(input.nodes[i].unitDemand * 6 - input.nodes[i].initialQuantity) / input.nodes[i].capacity);
+        MpSolver::LinearExpr times = 0;
+        for (ID v = 0; v < input.vehicleNum; ++v) {
+            for (ID t = 0; t < input.periodNum; ++t) {
+                times += x.xIsDelivered[v][t][i];
+            }
+        }
+        totalCost += (times - leastDeliveryNum) * 0;
     }
 
     MpSolver::LinearExpr estimatedRoutingCost = 0;
@@ -958,9 +964,8 @@ void IrpModelSolver::SolutionFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
             bool subtourFound = false;
-            if (solver.cfg.useLazyConstraints) {
-                //subtourFound = eliminateSubtour();
-                subtourFound = false;
+            if (solver.cfg.useLazyConstraints && !solver.cfg.allowSubtour) {
+                subtourFound = eliminateSubtour();
             }
             if (subtourFound) { return; }
 

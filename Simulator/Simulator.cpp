@@ -98,9 +98,9 @@ void Simulator::run(const String &envPath) {
 
 void Simulator::debug() {
     Task task;
-    task.instSet = "Instances_large_lowcost/";
+    task.instSet = "Instances_large_highcost/";
     //task.instSet = "Instances_lowcost_H3/";
-    task.instId = "abs1n50";
+    task.instId = "abs8n100";
     task.randSeed = "1500972793";
     //task.randSeed = to_string(RandSeed::generate());
     task.timeout = "180";
@@ -115,7 +115,7 @@ void Simulator::debug() {
 
 void Simulator::benchmark(int repeat) {
     Task task;
-    task.instSet = "Instances_large_lowcost/";
+    task.instSet = "Instances_large_highcost/";
     //task.timeout = "180";
     //task.maxIter = "1000000000";
     task.timeout = "3600";
@@ -127,12 +127,12 @@ void Simulator::benchmark(int repeat) {
     random_device rd;
     mt19937 rgen(rd());
     // EXTEND[szx][5]: read it from InstanceList.txt.
-    vector<String> instList({ "abs1n50", "abs2n50", "abs3n50", "abs4n50", "abs5n50",
+    vector<String> instList({ /*"abs1n50", "abs2n50", "abs3n50", "abs4n50", "abs5n50",
         "abs6n50", "abs7n50", "abs8n50", "abs9n50", "abs10n50",
         "abs1n100", "abs2n100", "abs3n100", "abs4n100", "abs5n100",
-        /*"abs6n100", "abs7n100", "abs8n100", "abs9n100", "abs10n100",
+        "abs6n100", "abs7n100", "abs8n100", */"abs9n100", "abs10n100",
         "abs1n200", "abs2n200", "abs3n200", "abs4n200", "abs5n200",
-        "abs6n200", "abs7n200", "abs8n200", "abs9n200", "abs10n200"*/ });
+        "abs6n200", "abs7n200", "abs8n200", "abs9n200", "abs10n200" });
     for (int i = 0; i < repeat; ++i) {
         //shuffle(instList.begin(), instList.end(), rgen);
         for (auto inst = instList.begin(); inst != instList.end(); ++inst) {
