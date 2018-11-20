@@ -1,1 +1,1 @@
-计算结果.
+第一次运行程序之前需要在目录下新建和对应数据集同名的文件夹，比如计算 Instance/Instances_lowcost_H3 下的算例时，要保证 Solution 目录下有 Instances_lowcost_H3 目录.
