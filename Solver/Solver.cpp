@@ -403,8 +403,69 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
     ofs << oss.str();
     ofs.close();
 
-    // record solution.
     sln.totalCost = holdingObj + routingObj;
+    while (true) {
+        double decreasedCost = 0;
+        ID deletePeriod = -1, deleteVehicle = -1;
+        ID deleteNode = -1, preNode = -1, postNode = -1;
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            for (ID v = 0; v < input.vehicles_size(); ++v) {
+                if (presetX.xQuantity[v][t][0] < IrpModelSolver::DefaultDoubleGap) { continue; }
+                for (ID i = 1; i < input.nodes_size(); ++i) {
+                    if (presetX.xQuantity[v][t][i] < IrpModelSolver::DefaultDoubleGap) { continue; }
+                    bool valid = true;
+                    //if (presetX.xQuantity[v][t][i] + presetX.xQuantity[v][t][0] > input.vehicles()[v].capacity()) { continue; }
+                    int restQuantity = input.nodes()[i].initquantity();
+                    for (ID j = 0; j < input.periodnum(); ++j) {
+                        restQuantity -= input.nodes()[i].unitdemand();
+                        restQuantity += (j == t) ? 0 : lround(presetX.xQuantity[v][j][i]);
+                        if (restQuantity < 0) { valid = false; }
+                    }
+                    if (valid) {
+                        double delta = (input.nodes()[i].holidingcost() - input.nodes()[0].holidingcost()) * lround(presetX.xQuantity[v][t][i]) * (input.periodnum() - t);
+                        ID pre = -1, post = -1;
+                        for (ID j = 0; j < input.nodes_size(); ++j) {
+                            if (i == j) { continue; }
+                            if (presetX.xEdge[v][t][i][j]) {
+                                post = j;
+                            }
+                            if (presetX.xEdge[v][t][j][i]) {
+                                pre = j;
+                            }
+                            if ((pre >= 0) && (post >= 0)) { break; }
+                        }
+                        delta += aux.routingCost[pre][i] + aux.routingCost[i][post] - aux.routingCost[pre][post];
+
+                        if (delta > decreasedCost) {
+                            decreasedCost = delta;
+                            deleteVehicle = v;
+                            deletePeriod = t;
+                            deleteNode = i;
+                            preNode = pre;
+                            postNode = post;
+                        }
+                    }
+                }
+            }
+        }
+        cout << deleteNode << "," << deletePeriod << "," << decreasedCost << endl;
+        if (decreasedCost <= 0) {
+            break;
+        }
+
+        presetX.xQuantity[deleteVehicle][deletePeriod][0] -= lround(presetX.xQuantity[deleteVehicle][deletePeriod][deleteNode]);
+        presetX.xQuantity[deleteVehicle][deletePeriod][deleteNode] = 0;
+        presetX.xEdge[deleteVehicle][deletePeriod][preNode][deleteNode] = false;
+        presetX.xEdge[deleteVehicle][deletePeriod][deleteNode][postNode] = false;
+        presetX.xEdge[deleteVehicle][deletePeriod][preNode][postNode] = true;
+
+        sln.totalCost -= decreasedCost;
+        cout << sln.totalCost << endl;
+    }
+    
+
+    // record solution.
+    //sln.totalCost = holdingObj + routingObj;
     retrieveOutputFromModel(sln, modelSolver.presetX);
 
     return true;
