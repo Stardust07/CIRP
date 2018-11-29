@@ -29,7 +29,7 @@ message InventoryRouting { // 求解算法输入输出数据接口.
   message Output { // 求解结果输出数据.
     repeated RoutesInPeriod allRoutes = 1; // routeLists[i] 表示周期 i 的所有配送路线.
     double routingCost = 2;
-    double holidingCost = 3;
+    double holdingCost = 3;
   }
 }
 
@@ -41,7 +41,7 @@ message Node { // 节点信息
   int32 capacity = 5; // 容量.
   int32 minLevel = 6; // 最低库存量.
   int32 unitDemand = 7; // 单位周期消耗量.(对于仓库 unitDemand<=0,对于客户 unitDemand>=0).
-  double holidingCost = 8;  // 单位库存开销.
+  double holdingCost = 8;  // 单位库存开销.
 }
 
 message Vehicle { // 车辆信息

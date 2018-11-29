@@ -346,11 +346,11 @@ class InventoryRouting_Output : public ::google::protobuf::Message /* @@protoc_i
   double routingcost() const;
   void set_routingcost(double value);
 
-  // double holidingCost = 3;
-  void clear_holidingcost();
-  static const int kHolidingCostFieldNumber = 3;
-  double holidingcost() const;
-  void set_holidingcost(double value);
+  // double holdingCost = 3;
+  void clear_holdingcost();
+  static const int kHoldingCostFieldNumber = 3;
+  double holdingcost() const;
+  void set_holdingcost(double value);
 
   // @@protoc_insertion_point(class_scope:pb.InventoryRouting.Output)
  private:
@@ -358,7 +358,7 @@ class InventoryRouting_Output : public ::google::protobuf::Message /* @@protoc_i
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::RepeatedPtrField< ::pb::RoutesInPeriod > allroutes_;
   double routingcost_;
-  double holidingcost_;
+  double holdingcost_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_InventoryRouting_2eproto::TableStruct;
 };
@@ -586,11 +586,11 @@ class Node : public ::google::protobuf::Message /* @@protoc_insertion_point(clas
   ::google::protobuf::int32 minlevel() const;
   void set_minlevel(::google::protobuf::int32 value);
 
-  // double holidingCost = 8;
-  void clear_holidingcost();
-  static const int kHolidingCostFieldNumber = 8;
-  double holidingcost() const;
-  void set_holidingcost(double value);
+  // double holdingCost = 8;
+  void clear_holdingcost();
+  static const int kHoldingCostFieldNumber = 8;
+  double holdingcost() const;
+  void set_holdingcost(double value);
 
   // int32 unitDemand = 7;
   void clear_unitdemand();
@@ -608,7 +608,7 @@ class Node : public ::google::protobuf::Message /* @@protoc_insertion_point(clas
   double y_;
   ::google::protobuf::int32 capacity_;
   ::google::protobuf::int32 minlevel_;
-  double holidingcost_;
+  double holdingcost_;
   ::google::protobuf::int32 unitdemand_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_InventoryRouting_2eproto::TableStruct;
@@ -1524,18 +1524,18 @@ inline void InventoryRouting_Output::set_routingcost(double value) {
   // @@protoc_insertion_point(field_set:pb.InventoryRouting.Output.routingCost)
 }
 
-// double holidingCost = 3;
-inline void InventoryRouting_Output::clear_holidingcost() {
-  holidingcost_ = 0;
+// double holdingCost = 3;
+inline void InventoryRouting_Output::clear_holdingcost() {
+  holdingcost_ = 0;
 }
-inline double InventoryRouting_Output::holidingcost() const {
-  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Output.holidingCost)
-  return holidingcost_;
+inline double InventoryRouting_Output::holdingcost() const {
+  // @@protoc_insertion_point(field_get:pb.InventoryRouting.Output.holdingCost)
+  return holdingcost_;
 }
-inline void InventoryRouting_Output::set_holidingcost(double value) {
+inline void InventoryRouting_Output::set_holdingcost(double value) {
   
-  holidingcost_ = value;
-  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Output.holidingCost)
+  holdingcost_ = value;
+  // @@protoc_insertion_point(field_set:pb.InventoryRouting.Output.holdingCost)
 }
 
 // -------------------------------------------------------------------
@@ -1644,18 +1644,18 @@ inline void Node::set_unitdemand(::google::protobuf::int32 value) {
   // @@protoc_insertion_point(field_set:pb.Node.unitDemand)
 }
 
-// double holidingCost = 8;
-inline void Node::clear_holidingcost() {
-  holidingcost_ = 0;
+// double holdingCost = 8;
+inline void Node::clear_holdingcost() {
+  holdingcost_ = 0;
 }
-inline double Node::holidingcost() const {
-  // @@protoc_insertion_point(field_get:pb.Node.holidingCost)
-  return holidingcost_;
+inline double Node::holdingcost() const {
+  // @@protoc_insertion_point(field_get:pb.Node.holdingCost)
+  return holdingcost_;
 }
-inline void Node::set_holidingcost(double value) {
+inline void Node::set_holdingcost(double value) {
   
-  holidingcost_ = value;
-  // @@protoc_insertion_point(field_set:pb.Node.holidingCost)
+  holdingcost_ = value;
+  // @@protoc_insertion_point(field_set:pb.Node.holdingCost)
 }
 
 // -------------------------------------------------------------------

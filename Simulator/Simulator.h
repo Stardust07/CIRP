@@ -93,7 +93,7 @@ private:
         node.set_capacity(capacity);
         node.set_minlevel(minLevel);
         node.set_unitdemand(unitDemand);
-        node.set_holidingcost(holdingCost);
+        node.set_holdingcost(holdingCost);
     }
     #pragma endregion Method
 
