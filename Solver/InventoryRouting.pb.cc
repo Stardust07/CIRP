@@ -254,7 +254,7 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Node, capacity_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Node, minlevel_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Node, unitdemand_),
-  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Node, holidingcost_),
+  GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Node, holdingcost_),
   ~0u,  // no _has_bits_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::pb::Vehicle, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -352,24 +352,24 @@ void AddDescriptorsImpl() {
       " \003(\0132\010.pb.Node\022\017\n\007bestObj\030\004 \001(\001\022\024\n\014refer"
       "enceObj\030\005 \001(\001\022\025\n\rreferenceTime\030\006 \001(\001\032/\n\006"
       "Output\022%\n\tallRoutes\030\001 \003(\0132\022.pb.RoutesInP"
-      "eriod\"\214\001\n\004Node\022\n\n\002id\030\001 \001(\005\022\t\n\001x\030\002 \001(\001\022\t\n"
+      "eriod\"\213\001\n\004Node\022\n\n\002id\030\001 \001(\005\022\t\n\001x\030\002 \001(\001\022\t\n"
       "\001y\030\003 \001(\001\022\024\n\014initQuantity\030\004 \001(\005\022\020\n\010capaci"
       "ty\030\005 \001(\005\022\020\n\010minLevel\030\006 \001(\005\022\022\n\nunitDemand"
-      "\030\007 \001(\005\022\024\n\014holidingCost\030\010 \001(\001\"\'\n\007Vehicle\022"
-      "\n\n\002id\030\001 \001(\005\022\020\n\010capacity\030\002 \001(\005\")\n\005Route\022 "
-      "\n\ndeliveries\030\002 \003(\0132\014.pb.Delivery\"+\n\016Rout"
-      "esInPeriod\022\031\n\006routes\030\001 \003(\0132\t.pb.Route\"*\n"
-      "\010Delivery\022\014\n\004node\030\001 \001(\005\022\020\n\010quantity\030\002 \001("
-      "\005\"\350\001\n\nSubmission\022\016\n\006author\030\001 \001(\t\022\021\n\talgo"
-      "rithm\030\002 \001(\t\022\016\n\006thread\030\003 \001(\t\022\013\n\003cpu\030\004 \001(\t"
-      "\022\013\n\003ram\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\020\n\010compi"
-      "ler\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017\n\007problem\030\025 \001(\t\022\020"
-      "\n\010instance\030\026 \001(\t\022\020\n\010duration\030\027 \001(\t\022\013\n\003ob"
-      "j\030\037 \001(\001\022\r\n\005email\030  \001(\t\022\014\n\004date\030! \001(\tB\026\n\002"
-      "pbB\020InventoryRoutingb\006proto3"
+      "\030\007 \001(\005\022\023\n\013holdingCost\030\010 \001(\001\"\'\n\007Vehicle\022\n"
+      "\n\002id\030\001 \001(\005\022\020\n\010capacity\030\002 \001(\005\")\n\005Route\022 \n"
+      "\ndeliveries\030\002 \003(\0132\014.pb.Delivery\"+\n\016Route"
+      "sInPeriod\022\031\n\006routes\030\001 \003(\0132\t.pb.Route\"*\n\010"
+      "Delivery\022\014\n\004node\030\001 \001(\005\022\020\n\010quantity\030\002 \001(\005"
+      "\"\350\001\n\nSubmission\022\016\n\006author\030\001 \001(\t\022\021\n\talgor"
+      "ithm\030\002 \001(\t\022\016\n\006thread\030\003 \001(\t\022\013\n\003cpu\030\004 \001(\t\022"
+      "\013\n\003ram\030\005 \001(\t\022\020\n\010language\030\006 \001(\t\022\020\n\010compil"
+      "er\030\007 \001(\t\022\n\n\002os\030\010 \001(\t\022\017\n\007problem\030\025 \001(\t\022\020\n"
+      "\010instance\030\026 \001(\t\022\020\n\010duration\030\027 \001(\t\022\013\n\003obj"
+      "\030\037 \001(\001\022\r\n\005email\030  \001(\t\022\014\n\004date\030! \001(\tB\026\n\002p"
+      "bB\020InventoryRoutingb\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 828);
+      descriptor, 827);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "InventoryRouting.proto", &protobuf_RegisterTypes);
 }
@@ -1228,7 +1228,7 @@ const int Node::kInitQuantityFieldNumber;
 const int Node::kCapacityFieldNumber;
 const int Node::kMinLevelFieldNumber;
 const int Node::kUnitDemandFieldNumber;
-const int Node::kHolidingCostFieldNumber;
+const int Node::kHoldingCostFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 Node::Node()
@@ -1396,14 +1396,14 @@ bool Node::MergePartialFromCodedStream(
         break;
       }
 
-      // double holidingCost = 8;
+      // double holdingCost = 8;
       case 8: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
             static_cast< ::google::protobuf::uint8>(65u /* 65 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
-                 input, &holidingcost_)));
+                 input, &holdingcost_)));
         } else {
           goto handle_unusual;
         }
@@ -1471,9 +1471,9 @@ void Node::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteInt32(7, this->unitdemand(), output);
   }
 
-  // double holidingCost = 8;
-  if (this->holidingcost() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(8, this->holidingcost(), output);
+  // double holdingCost = 8;
+  if (this->holdingcost() != 0) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(8, this->holdingcost(), output);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -1525,9 +1525,9 @@ void Node::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(7, this->unitdemand(), target);
   }
 
-  // double holidingCost = 8;
-  if (this->holidingcost() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(8, this->holidingcost(), target);
+  // double holdingCost = 8;
+  if (this->holdingcost() != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(8, this->holdingcost(), target);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -1585,8 +1585,8 @@ size_t Node::ByteSizeLong() const {
         this->minlevel());
   }
 
-  // double holidingCost = 8;
-  if (this->holidingcost() != 0) {
+  // double holdingCost = 8;
+  if (this->holdingcost() != 0) {
     total_size += 1 + 8;
   }
 
@@ -1642,8 +1642,8 @@ void Node::MergeFrom(const Node& from) {
   if (from.minlevel() != 0) {
     set_minlevel(from.minlevel());
   }
-  if (from.holidingcost() != 0) {
-    set_holidingcost(from.holidingcost());
+  if (from.holdingcost() != 0) {
+    set_holdingcost(from.holdingcost());
   }
   if (from.unitdemand() != 0) {
     set_unitdemand(from.unitdemand());
@@ -1680,7 +1680,7 @@ void Node::InternalSwap(Node* other) {
   swap(y_, other->y_);
   swap(capacity_, other->capacity_);
   swap(minlevel_, other->minlevel_);
-  swap(holidingcost_, other->holidingcost_);
+  swap(holdingcost_, other->holdingcost_);
   swap(unitdemand_, other->unitdemand_);
   _internal_metadata_.Swap(&other->_internal_metadata_);
 }

@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
     vector<int> restQuntity(nodeNum, 0);
     for (auto i = nodes.begin(); i != nodes.end(); ++i) {
         restQuntity[i->id()] = i->initquantity();
-        holdingCost += i->holidingcost() * i->initquantity();
+        holdingCost += i->holdingcost() * i->initquantity();
     }
     for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
         for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
                 restQuntity[id] -= i->unitdemand();
                 if (lround(restQuntity[id]) > i->capacity()) { error |= CheckerFlag::QuantityReasonabilityError; }
             }
-            holdingCost += i->holidingcost() * restQuntity[id];
+            holdingCost += i->holdingcost() * restQuntity[id];
         }
     }
 

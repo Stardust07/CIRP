@@ -39,7 +39,7 @@ message Node { // 节点信息
   int32 capacity = 5; // 容量.
   int32 minLevel = 6; // 最低库存量.
   int32 unitDemand = 7; // 单位周期消耗量.(对于仓库 unitDemand<=0,对于客户 unitDemand>=0).
-  double holidingCost = 8;  // 单位库存开销.
+  double holdingCost = 8;  // 单位库存开销.
 }
 
 message Vehicle { // 车辆信息

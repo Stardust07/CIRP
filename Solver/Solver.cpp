@@ -295,7 +295,7 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     List<int> restQuantity(nodeNum, 0);
     for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
         restQuantity[i->id()] = i->initquantity();
-        sln.totalCost += i->holidingcost() * restQuantity[i->id()];
+        sln.totalCost += i->holdingcost() * restQuantity[i->id()];
     }
 
     // TODO[0]: replace the following random assignment with your own algorithm.
@@ -327,7 +327,7 @@ bool Solver::optimize(Solution &sln, ID workerId) {
         }
         for (auto i = nodes.begin(); i != nodes.end(); ++i) {
             restQuantity[i->id()] -= i->unitdemand();
-            sln.totalCost += restQuantity[i->id()] * i->holidingcost();
+            sln.totalCost += restQuantity[i->id()] * i->holdingcost();
         }
     }
         
