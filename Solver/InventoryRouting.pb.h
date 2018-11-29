@@ -586,11 +586,11 @@ class Node : public ::google::protobuf::Message /* @@protoc_insertion_point(clas
   ::google::protobuf::int32 minlevel() const;
   void set_minlevel(::google::protobuf::int32 value);
 
-  // double holidingCost = 8;
-  void clear_holidingcost();
-  static const int kHolidingCostFieldNumber = 8;
-  double holidingcost() const;
-  void set_holidingcost(double value);
+  // double holdingCost = 8;
+  void clear_holdingcost();
+  static const int kHoldingCostFieldNumber = 8;
+  double holdingcost() const;
+  void set_holdingcost(double value);
 
   // int32 unitDemand = 7;
   void clear_unitdemand();
@@ -608,7 +608,7 @@ class Node : public ::google::protobuf::Message /* @@protoc_insertion_point(clas
   double y_;
   ::google::protobuf::int32 capacity_;
   ::google::protobuf::int32 minlevel_;
-  double holidingcost_;
+  double holdingcost_;
   ::google::protobuf::int32 unitdemand_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
   friend struct ::protobuf_InventoryRouting_2eproto::TableStruct;
@@ -1644,18 +1644,18 @@ inline void Node::set_unitdemand(::google::protobuf::int32 value) {
   // @@protoc_insertion_point(field_set:pb.Node.unitDemand)
 }
 
-// double holidingCost = 8;
-inline void Node::clear_holidingcost() {
-  holidingcost_ = 0;
+// double holdingCost = 8;
+inline void Node::clear_holdingcost() {
+  holdingcost_ = 0;
 }
-inline double Node::holidingcost() const {
-  // @@protoc_insertion_point(field_get:pb.Node.holidingCost)
-  return holidingcost_;
+inline double Node::holdingcost() const {
+  // @@protoc_insertion_point(field_get:pb.Node.holdingCost)
+  return holdingcost_;
 }
-inline void Node::set_holidingcost(double value) {
+inline void Node::set_holdingcost(double value) {
   
-  holidingcost_ = value;
-  // @@protoc_insertion_point(field_set:pb.Node.holidingCost)
+  holdingcost_ = value;
+  // @@protoc_insertion_point(field_set:pb.Node.holdingCost)
 }
 
 // -------------------------------------------------------------------

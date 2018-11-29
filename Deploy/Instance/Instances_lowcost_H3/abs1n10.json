@@ -15,7 +15,7 @@
    "capacity": 3488,
    "minLevel": 0,
    "unitDemand": -635,
-   "holidingCost": 0.03
+   "holdingCost": 0.03
   },
   {
    "id": 1,
@@ -25,7 +25,7 @@
    "capacity": 174,
    "minLevel": 0,
    "unitDemand": 87,
-   "holidingCost": 0.02
+   "holdingCost": 0.02
   },
   {
    "id": 2,
@@ -35,7 +35,7 @@
    "capacity": 28,
    "minLevel": 0,
    "unitDemand": 14,
-   "holidingCost": 0.03
+   "holdingCost": 0.03
   },
   {
    "id": 3,
@@ -45,7 +45,7 @@
    "capacity": 258,
    "minLevel": 0,
    "unitDemand": 86,
-   "holidingCost": 0.03
+   "holdingCost": 0.03
   },
   {
    "id": 4,
@@ -55,7 +55,7 @@
    "capacity": 150,
    "minLevel": 0,
    "unitDemand": 75,
-   "holidingCost": 0.02
+   "holdingCost": 0.02
   },
   {
    "id": 5,
@@ -65,7 +65,7 @@
    "capacity": 126,
    "minLevel": 0,
    "unitDemand": 42,
-   "holidingCost": 0.02
+   "holdingCost": 0.02
   },
   {
    "id": 6,
@@ -75,7 +75,7 @@
    "capacity": 138,
    "minLevel": 0,
    "unitDemand": 69,
-   "holidingCost": 0.03
+   "holdingCost": 0.03
   },
   {
    "id": 7,
@@ -85,7 +85,7 @@
    "capacity": 237,
    "minLevel": 0,
    "unitDemand": 79,
-   "holidingCost": 0.04
+   "holdingCost": 0.04
   },
   {
    "id": 8,
@@ -95,7 +95,7 @@
    "capacity": 129,
    "minLevel": 0,
    "unitDemand": 43,
-   "holidingCost": 0.04
+   "holdingCost": 0.04
   },
   {
    "id": 9,
@@ -105,7 +105,7 @@
    "capacity": 154,
    "minLevel": 0,
    "unitDemand": 77,
-   "holidingCost": 0.02
+   "holdingCost": 0.02
   },
   {
    "id": 10,
@@ -115,7 +115,7 @@
    "capacity": 189,
    "minLevel": 0,
    "unitDemand": 63,
-   "holidingCost": 0.04
+   "holdingCost": 0.04
   }
  ],
  "bestObj": 1743.07,
