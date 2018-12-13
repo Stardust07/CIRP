@@ -88,7 +88,7 @@ public:
     // controls the I/O data format, exported contents and general usage of the solver.
     struct Configuration {
         enum Algorithm { Greedy, TreeSearch, DynamicProgramming, LocalSearch, Genetic, MathematicallProgramming,
-        CompleteModel, RelaxInit, Decomposition, Analysis };
+        CompleteModel, RelaxedInventory, Decomposition, RelaxedTsp, Analysis, Test };
 
 
         Configuration() {}
@@ -106,7 +106,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::CompleteModel; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::Test; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -207,7 +207,8 @@ protected:
 
     bool solveWithCompleteModel(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithTSPRelaxed(Solution &sln, bool findFeasibleFirst = false);
-    bool solveWithRelaxedInit(Solution &sln, bool findFeasibleFirst = false);
+    bool solveWithTest(Solution &sln, bool findFeasibleFirst = false);
+    bool solveWithInventoryRelaxed(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithDecomposition(Solution &sln, bool findFeasibleFirst = false);
     void analyzeSolution();
 

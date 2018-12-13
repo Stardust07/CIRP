@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     } else {
         cerr << "input path: " << flush;
         //cin >> inputPath;
-        inputPath = "Instance/Instances_large_lowcost/abs1n50.json";
+        inputPath = "Instance/Instances_large_lowcost/abs6n50.json";
     }
 
     if (argc > 2) {
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     } else {
         cerr << "output path: " << flush;
         //cin >> outputPath;
-        outputPath = "Solution/Instances_large_lowcost/abs1n50.json";
+        outputPath = "Solution/Instances_large_lowcost/abs6n50.json";
     }
 
     pb::InventoryRouting::Input input;
@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
         }
         for (int i = 1; i < nodeNum; ++i) {
             if (visitedTimes[i] > 1) {
+                cout << "visit node " << i << " " << visitedTimes[i] << " times." << endl;
                 error |= CheckerFlag::MultipleVisitError;
             }
         }
@@ -96,7 +97,7 @@ int main(int argc, char *argv[]) {
     vector<int> restQuntity(nodeNum, 0);
     for (auto i = nodes.begin(); i != nodes.end(); ++i) {
         restQuntity[i->id()] = i->initquantity();
-        holdingCost += i->holidingcost() * i->initquantity();
+        holdingCost += i->holdingcost() * i->initquantity();
     }
     for (auto pr = allRoutes.begin(); pr != allRoutes.end(); ++pr) {
         for (auto vr = pr->routes().begin(); vr != pr->routes().end(); ++vr) {
@@ -115,7 +116,7 @@ int main(int argc, char *argv[]) {
                 restQuntity[id] -= i->unitdemand();
                 if (lround(restQuntity[id]) > i->capacity()) { error |= CheckerFlag::QuantityReasonabilityError; }
             }
-            holdingCost += i->holidingcost() * restQuntity[id];
+            holdingCost += i->holdingcost() * restQuntity[id];
         }
     }
 

@@ -22,6 +22,9 @@
     <Filter Include="MpSolver">
       <UniqueIdentifier>{6d57a9fe-a4a1-4540-b74e-db5068956b41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lkh3">
+      <UniqueIdentifier>{afa2d243-f011-42e9-8bf5-39c4fe7d4aab}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Config.h">

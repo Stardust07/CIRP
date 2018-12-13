@@ -32,7 +32,7 @@ bool IrpModelSolver::solve() {
     if (cfg.usePresetSolution) {
         setInitSolution();
     }
-    if (cfg.relaxMinlevel) {
+    if (cfg.allowShortage) {
         setShortageQuantityObjective();
         if (!mpSolver.optimize() || mpSolver.getObjectiveValue() > 0) {
             elapsedSeconds = DefaultTimeLimitSecond;
@@ -53,7 +53,7 @@ bool IrpModelSolver::solve() {
     //return check();
 }
 
-bool IrpModelSolver::solveIRPModel() {
+bool IrpModelSolver::solveInventoryModel() {
     cfg.useBenchmark = false;
     initRoutingCost();
     initSkipNodes();
@@ -87,7 +87,7 @@ bool IrpModelSolver::solveIRPModel() {
             presetX.xVisited[v][t].resize(input.nodeNum);
             fill(presetX.xVisited[v][t].begin(), presetX.xVisited[v][t].end(), false);
             for (ID i = 0; i < input.nodeNum; ++i) {
-                presetX.xVisited[v][t][i] = mpSolver.isTrue(x.xIsDelivered[v][t][i]);
+                presetX.xVisited[v][t][i] = mpSolver.isTrue(x.xVisited[v][t][i]);
             }
         }
     }
@@ -125,6 +125,10 @@ bool IrpModelSolver::solveRoutingModel() {
 }
 
 bool IrpModelSolver::optimizeInventory() {
+    cfg.useBenchmark = false;
+    initRoutingCost();
+    initSkipNodes();
+
     // 经过哪些点是确定的，优化库存 
     addIRPVariables();
     addNodeCapacityConstraint();
@@ -325,7 +329,7 @@ void IrpModelSolver::addDecisionVars() {
             }
         }
     }
-    if (cfg.relaxMinlevel) {
+    if (cfg.allowShortage) {
         x.xMinLevel.resize(input.nodeNum);
         x.xShortage.resize(input.nodeNum);
         x.xShortage[0] = mpSolver.makeVar(MpSolver::VariableType::Bool);
@@ -464,9 +468,9 @@ void IrpModelSolver::addCustomerLevelConstraint() {
             }
             mpSolver.makeConstraint(restQuantity <= input.nodes[i].capacity, str("mc", i, t));
             restQuantity -= input.nodes[i].unitDemand;
-            mpSolver.makeConstraint(restQuantity >= (cfg.relaxMinlevel ? x.xMinLevel[i] : MpSolver::LinearExpr(input.nodes[i].minLevel)), "ml");
+            mpSolver.makeConstraint(restQuantity >= (cfg.allowShortage ? x.xMinLevel[i] : MpSolver::LinearExpr(input.nodes[i].minLevel)), "ml");
         }
-        if (cfg.relaxMinlevel) {
+        if (cfg.allowShortage) {
             mpSolver.makeConstraint(x.xShortage[i] >= -x.xMinLevel[i], "sm");
         }
     }
@@ -544,23 +548,23 @@ void IrpModelSolver::setInitSolution() {
 
 void IrpModelSolver::addIRPVariables() {
     x.xQuantity.resize(input.vehicleNum);
-    x.xIsDelivered.resize(input.vehicleNum);
+    x.xVisited.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xQuantity[v].resize(input.periodNum);
-        x.xIsDelivered[v].resize(input.periodNum);
+        x.xVisited[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
             x.xQuantity[v][t].resize(input.nodeNum);
-            x.xIsDelivered[v][t].resize(input.nodeNum);
+            x.xVisited[v][t].resize(input.nodeNum);
 
-            // load quantity at supplier is negative in irp model, positive otherwise.
+            // load quantity at supplier is negative in irp model, positive otherwise.  
             for (ID i = 0; i < input.nodeNum; ++i) {
                 x.xQuantity[v][t][i] = mpSolver.makeVar(
                     MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
                 if (cfg.usePresetSolution) {
                     double value = (presetX.xVisited[v][t][i] ? 1 : 0);
-                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, value, value);
+                    x.xVisited[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, value, value);
                 } else {
-                    x.xIsDelivered[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool);
+                    x.xVisited[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool);
                 }
             }
         }
@@ -571,9 +575,9 @@ void IrpModelSolver::addIRPVariables() {
         for (ID t = 0; t < input.periodNum; ++t) {
             MpSolver::LinearExpr visitedNode = 0;
             for (ID i = 1; i < input.nodeNum; ++i) {
-                visitedNode += x.xIsDelivered[v][t][i];
-                mpSolver.makeConstraint(x.xQuantity[v][t][i] <= min(input.vehicleCapacity, input.nodes[i].capacity)* x.xIsDelivered[v][t][i]);
-                mpSolver.makeConstraint(x.xIsDelivered[v][t][i] <= x.xQuantity[v][t][i]);
+                visitedNode += x.xVisited[v][t][i];
+                mpSolver.makeConstraint(x.xQuantity[v][t][i] <= min(input.vehicleCapacity, input.nodes[i].capacity)* x.xVisited[v][t][i]);
+                mpSolver.makeConstraint(x.xVisited[v][t][i] <= x.xQuantity[v][t][i]);
             }
 
             if (!cfg.usePresetSolution) {
@@ -653,7 +657,7 @@ void IrpModelSolver::setHoldingCostObjective() {
         MpSolver::LinearExpr times = 0;
         for (ID v = 0; v < input.vehicleNum; ++v) {
             for (ID t = 0; t < input.periodNum; ++t) {
-                times += x.xIsDelivered[v][t][i];
+                times += x.xVisited[v][t][i];
             }
         }
         totalCost += (times - leastDeliveryNum) * 0;
@@ -663,7 +667,7 @@ void IrpModelSolver::setHoldingCostObjective() {
     for (ID i = 1; i < input.nodeNum; ++i) {
         for (ID t = 0; t < input.periodNum; ++t) {
             for (ID v = 0; v < input.vehicleNum; ++v) {
-                estimatedRoutingCost += (routingCost[0][i] + routingCost[i][0]) * x.xIsDelivered[v][t][i];
+                estimatedRoutingCost += (routingCost[0][i] + routingCost[i][0]) * x.xVisited[v][t][i];
             }
         }
     }
@@ -948,11 +952,11 @@ bool IrpModelSolver::check() {
     // check obj match.
     List<bool> backup(presetX.isPeriodFixed);
     fill(presetX.isPeriodFixed.begin(), presetX.isPeriodFixed.end(), true);
-    if (!cfg.relaxMinlevel && (totalCost - getCostInPeriod(0, input.periodNum) > DefaultDoubleGap)) {
+    if (!cfg.allowShortage && (totalCost - getCostInPeriod(0, input.periodNum) > DefaultDoubleGap)) {
         cout << "Worse actual objective = " << totalCost << ">" << getCostInPeriod(0, input.periodNum) << endl;
         presetX.isPeriodFixed = backup;
         return false;
-    } else if (!cfg.relaxMinlevel && (getCostInPeriod(0, input.periodNum) - totalCost > DefaultDoubleGap)) {
+    } else if (!cfg.allowShortage && (getCostInPeriod(0, input.periodNum) - totalCost > DefaultDoubleGap)) {
         cout << "Better actual objective = " << totalCost << "<" << getCostInPeriod(0, input.periodNum) << endl;
     }
     presetX.isPeriodFixed = backup;
@@ -1112,7 +1116,7 @@ bool IrpModelSolver::TSPSolutionFound::eliminateSubtour() {
                 if (len > 0) {
                     addLazy(expr <= len - 1);
                     subtourFound = true;
-                    //break;
+                    if (!solver.cfg.forbidAllSubtours) { break; }
                 }
             }
         }

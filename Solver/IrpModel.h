@@ -78,7 +78,7 @@ public:
     #pragma region Method
 public:
     bool solve();
-    bool solveIRPModel();
+    bool solveInventoryModel();
     bool solveRoutingModel();
     bool optimizeInventory();
     void retrieveSolution();
@@ -116,7 +116,7 @@ public:
         presetX.xQuantity[v][t] = xQuantity;
     }
     void setFindFeasiblePreference() { mpSolver.setFocus(1); }
-    void enableRelaxMinLevel() { cfg.relaxMinlevel = true; }
+    void enableRelaxMinLevel() { cfg.allowShortage = true; }
     void setTimeLimitInSecond(int second) { mpSolver.setTimeLimitInSecond(second); }
     void relaxTspSubtourConstraint() { 
         cfg.allowSubtour = true;
@@ -139,21 +139,7 @@ protected:
     void setShortageQuantityObjective() {
         mpSolver.setObjective(totalShortageQuantity(), MpSolver::OptimaOrientation::Minimize);
     }
-    void setMixedObjective() {
-        MpSolver::LinearExpr expr = 0;
-        expr += totalCostInPeriod(0, input.periodNum);
-        MpSolver::LinearExpr totalShortage = 0;
-        int maxShortage = 0;
-        for (ID i = 1; i < input.nodeNum; ++i) {
-            totalShortage += x.xShortage[i];
-            int restQuantity = input.nodes[i].initialQuantity - input.periodNum * input.nodes[i].unitDemand;
-            maxShortage += ((restQuantity >= 0) ? 0 : -restQuantity);
-        }
-        mpSolver.makeConstraint(maxShortage * x.xShortage[0] >= totalShortage);
 
-        expr += x.xShortage[0] * getBestObj() * 15;
-        mpSolver.setObjective(expr, MpSolver::OptimaOrientation::Minimize);
-    }
     void setSubTourCallback() { mpSolver.setCallback(&callback); }
     void setInitSolution();
     void initSolver() {
@@ -229,24 +215,24 @@ protected:
     struct Configuration {
         bool useLazyConstraints;
         bool useBenchmark;
-        bool relaxMinlevel;
+        bool usePresetSolution;
+        bool allowShortage;
         bool allowSubtour;
         bool optimizeTotalCost;
-        bool usePresetSolution;
         bool forbidAllSubtours;
         bool enableMpOutput;
 
-        Configuration() :useLazyConstraints(true), useBenchmark(true), relaxMinlevel(false), allowSubtour(false),
-            optimizeTotalCost(false), usePresetSolution(false), forbidAllSubtours(true), enableMpOutput(true) {}
+        Configuration() :useLazyConstraints(true), useBenchmark(true), usePresetSolution(false), allowShortage(false),
+            allowSubtour(false), optimizeTotalCost(false), forbidAllSubtours(true), enableMpOutput(true) {}
     } cfg;
 
     struct {
         List2D<List2D<MpSolver::DecisionVar>> xEdge;
-        List2D<List<MpSolver::DecisionVar>> xQuantity;
-        List2D<List<MpSolver::DecisionVar>> xSequence;
+        List2D<List<MpSolver::DecisionVar>> xQuantity; // delivered quantity
+        List2D<List<MpSolver::DecisionVar>> xSequence; // visited order
         List<MpSolver::DecisionVar> xMinLevel;
         List<MpSolver::DecisionVar> xShortage;
-        List2D<List<MpSolver::DecisionVar>> xIsDelivered;
+        List2D<List<MpSolver::DecisionVar>> xVisited;
         MpSolver::DecisionVar xMax;
     } x;
 
@@ -287,8 +273,26 @@ protected:
             return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap));
         }
         bool eliminateSubtour();
-        void printSolutionInfo();
     } tspCallback;
+
+    // for tsp-relaxed model
+    class InfeasibleFound : public GRBCallback {
+        IrpModelSolver &solver;
+        const IrpModelSolver::Input &input;
+
+    public:
+        InfeasibleFound(IrpModelSolver &sol) :solver(sol), input(sol.input) {}
+
+    protected:
+        void callback();
+
+        bool isTrue(MpSolver::DecisionVar var) {
+            double x = getSolution(var);
+            return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap));
+        }
+
+        void forbidCurrentSolution()
+    };
     #pragma endregion Field
 }; // IrpModelSolver
 
