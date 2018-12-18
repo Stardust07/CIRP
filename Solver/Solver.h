@@ -216,6 +216,7 @@ protected:
     void convertToModelInput(IrpModelSolver::Input &model, const Problem::Input &problem);
     void retrieveOutputFromModel(Problem::Output &sln, const IrpModelSolver::PresetX &presetX);
     void solutionToPresetX(IrpModelSolver::PresetX &presetX, const Problem::Output &sln);
+    void writePathToCsv(const IrpModelSolver::PresetX &presetX);
 
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
     // solve tsp model.

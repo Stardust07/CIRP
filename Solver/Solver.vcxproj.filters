@@ -22,8 +22,11 @@
     <Filter Include="MpSolver">
       <UniqueIdentifier>{6d57a9fe-a4a1-4540-b74e-db5068956b41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lkh3Lib">
+      <UniqueIdentifier>{7f96b9e5-607d-4253-9395-afef4a7ddc8c}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Lkh3">
-      <UniqueIdentifier>{afa2d243-f011-42e9-8bf5-39c4fe7d4aab}</UniqueIdentifier>
+      <UniqueIdentifier>{e3549a0c-0601-4c44-b735-5ef5b503643a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -63,6 +66,54 @@
     <ClInclude Include="TabuSolver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\Arr.h">
+      <Filter>Lkh3Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\Cache.h">
+      <Filter>Lkh3Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\Graph.h">
+      <Filter>Lkh3Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\Input.h">
+      <Filter>Lkh3Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\BIT.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Delaunay.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\GainType.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Genetic.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\GeoConversion.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\gpx.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Hashing.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Heap.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\LKH.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Segment.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3\Sequence.h">
+      <Filter>Lkh3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\lkhSolver.h">
+      <Filter>Lkh3Lib</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -88,6 +139,480 @@
     </ClCompile>
     <ClCompile Include="TabuSolver.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\_LKH.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Activate.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AddCandidate.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AddExtraCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AddTourCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AdjustCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AdjustClusters.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\AllocateStructures.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Ascent.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Best2OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Best3OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Best4OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Best5OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\BestKOptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\BestSpecialOptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Between.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Between_SL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Between_SSL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\BIT.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\BridgeGain.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\BuildKDTree.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\C.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CandidateReport.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ChooseInitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Connect.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Create_POPMUSIC_CandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CreateCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CreateDelaunayCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CreateNNCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CreateQuadrantCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CTSP_InitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\CVRP_InitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Delaunay.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Distance.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Distance_MTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Distance_SOP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Distance_SPECIAL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\eprintf.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ERXT.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Excludable.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Exclude.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\FindTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\FixedOrCommonCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Flip.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Flip_SL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Flip_SSL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Forbidden.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\FreeStructures.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\fscanint.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Gain23.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\GenerateCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Genetic.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\GeoConversion.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\GetTime.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\gpx.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\GreedyTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Hashing.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Heap.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Improvement.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\IsBackboneCandidate.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\IsCandidate.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\IsCommonEdge.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\IsPossibleCandidate.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\KSwapKick.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\LinKernighan.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Make2OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Make3OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Make4OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Make5OptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MakeKOptMove.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MergeTourWithBestTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MergeWithTourGPX2.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MergeWithTourIPT.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Minimum1TreeCost.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MinimumSpanningTree.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MTSP_InitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MTSP_Report.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MTSP_WriteResult.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MTSP_WriteSolution.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\MTSP2TSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\NormalizeNodeList.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\NormalizeSegmentList.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\OrderCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\PatchCycles.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\PDPTW_Reduce.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\PDTSPL_RepairTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\PDTSPL_Tree.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_1_PDTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_ACVRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_BWTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_CCVRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_CTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_CVRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_CVRPTW.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_M_PDTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_M1_PDTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_MLP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_MTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_MVRPB.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_OVRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_PDPTW.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_PDTSP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_PDTSPF.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_PDTSPL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_RCTVRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_SCVRPTW.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_SOP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_TRP.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_TSPDL.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_TSPPD.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_TSPTW.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_VRPB.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_VRPBTW.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Penalty_VRPPD.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\printff.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\PrintParameters.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Random.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadEdges.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadLine.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadParameters.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadPenalties.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ReadProblem.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\RecordBestTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\RecordBetterTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\RemoveFirstActive.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\ResetCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\RestoreTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SegmentSize.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Sequence.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SFCTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SINTEF_WriteSolution.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveCompressedSubproblem.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveDelaunaySubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveKarpSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveKCenterSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveKMeansSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveRoheSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveSFCSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveSubproblem.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveSubproblemBorderProblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SolveTourSegmentSubproblems.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SOP_InitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SOP_RepairTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SOP_Report.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\Statistics.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\StatusReport.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\StoreTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\SymmetrizeCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\TrimCandidateSet.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\TSPDL_InitialTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\TSPTW_MakespanCost.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\TSPTW_Reduce.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\VRPB_Reduce.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\WriteCandidates.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\WritePenalties.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3\WriteTour.cpp">
+      <Filter>Lkh3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Lib\lkh\LKH3Lib\lkhSolver.cpp">
+      <Filter>Lkh3Lib</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
