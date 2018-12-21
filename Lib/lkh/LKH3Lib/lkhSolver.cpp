@@ -301,10 +301,11 @@ bool solveTsp(Tour &sln, const CoordList2D &coordList, const Tour &hintSln) {
     if (tspFile.bad()) {
         cout << "Failed to open file." << endl;
     }
+    
     ostringstream oss;
     oss << "NAME : pr" << endl
         << "TYPE : TSP" << endl
-        << " DIMENSION : " << coordList.size() << endl
+        << "DIMENSION : " << coordList.size() << endl
         << "EDGE_WEIGHT_TYPE : EUC_2D" << endl
         << "NODE_COORD_SECTION" << endl;
 
@@ -330,7 +331,7 @@ bool solveTsp(Tour &sln, const CoordList2D &coordList, const Tour &hintSln) {
         << "POPULATION_SIZE=" << 2 << "\n"
         << "RUNS = " << 10 << "\n"
         << "POPULATION_SIZE=" << 2 << "\n"
-        << "OUTPUT_TOUR_FILE = " << slnFilePath;
+        << "OUTPUT_TOUR_FILE = " << slnFilePath.str();
     parFile.close();
 
     ostringstream cmd;

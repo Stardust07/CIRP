@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
         SubtourExistenceError = 0x2,
         MultipleVisitError = 0x4,
         LoadDeliveryError = 0x8,
-        QuantityReasonabilityError = 0x16
+        QuantityReasonabilityError = 0x10
     };
 
     string inputPath;
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     } else {
         cerr << "input path: " << flush;
         //cin >> inputPath;
-        inputPath = "Instance/Instances_large_lowcost/abs6n50.json";
+        inputPath = "Instance/h6c2n200.3.json";
     }
 
     if (argc > 2) {
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     } else {
         cerr << "output path: " << flush;
         //cin >> outputPath;
-        outputPath = "Solution/Instances_large_lowcost/abs6n50.json";
+        outputPath = "Solution/h6c2n200.3.json";
     }
 
     pb::InventoryRouting::Input input;
@@ -85,6 +85,10 @@ int main(int argc, char *argv[]) {
             int totalQuantity = 0;
             for (auto dl = vr->deliveries().begin(); dl != vr->deliveries().end(); ++dl) {
                 totalQuantity += dl->quantity();
+                // TODO[qym][5]: if quantity is not an integer.
+                //if (dl->quantity() % input.nodes()[dl->node()].unitdemand() != 0) { 
+                //    cout << dl->node() << "\t" << dl->quantity() << "\t" << input.nodes()[dl->node()].unitdemand() << endl;
+                //}
             }
             if (abs(totalQuantity) > DefaultDoubleGap) {
                 error |= CheckerFlag::LoadDeliveryError;

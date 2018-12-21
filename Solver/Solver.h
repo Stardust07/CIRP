@@ -88,7 +88,7 @@ public:
     // controls the I/O data format, exported contents and general usage of the solver.
     struct Configuration {
         enum Algorithm { Greedy, TreeSearch, DynamicProgramming, LocalSearch, Genetic, MathematicallProgramming,
-        CompleteModel, RelaxedInventory, Decomposition, RelaxedTsp, Analysis, Test };
+        CompleteModel, RelaxedInventory, Decomposition, RelaxedTsp, IterativeModel, Analysis, Test };
 
 
         Configuration() {}
@@ -206,7 +206,8 @@ protected:
     bool optimize(Solution &sln, ID workerId = 0); // optimize by a single worker.
 
     bool solveWithCompleteModel(Solution &sln, bool findFeasibleFirst = false);
-    bool solveWithTSPRelaxed(Solution &sln, bool findFeasibleFirst = false);
+    bool solveWithTspRelaxed(Solution &sln, bool findFeasibleFirst = false);
+    bool solveWithIterativeModel(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithTest(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithInventoryRelaxed(Solution &sln, bool findFeasibleFirst = false);
     bool solveWithDecomposition(Solution &sln, bool findFeasibleFirst = false);
@@ -221,6 +222,8 @@ protected:
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
     // solve tsp model.
     bool generateRouting(List<List<bool>> &edges, double &obj, double &seconds, 
+        const List<double> &quantity, const IrpModelSolver::Input inp);
+    bool generateRoutingWithLkh(List<List<bool>> &edges, double &obj, double &seconds,
         const List<double> &quantity, const IrpModelSolver::Input inp);
     void recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX);
 

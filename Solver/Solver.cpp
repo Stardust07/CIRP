@@ -204,7 +204,7 @@ void Solver::record() const {
     // record basic information.
     log << env.friendlyLocalTime() << ","
         << env.rid << ","
-        << env.instPath << ","
+        << env.friendlyInstName() << ","
         << feasible << "," << lround(obj - checkerObj) << ","
         << obj << ","
         << input.bestobj() << ","
@@ -215,7 +215,7 @@ void Solver::record() const {
         << env.randSeed << ","
         << cfg.toBriefStr() << ","
         << generation << "," << iteration
-        << "," << checkerObj << "," << output.routingcost() << "(R)," << output.holdingcost() << "(H)";
+        << "," << checkerObj << "," << output.routingcost() << "," << output.holdingcost() << "";
 
     // record solution vector.
     // EXTEND[qym][2]: save solution in log.
@@ -298,7 +298,8 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     case Configuration::Algorithm::RelaxedInventory:solveWithInventoryRelaxed(sln); break;
     case Configuration::Algorithm::Decomposition:solveWithDecomposition(sln); break;
     case Configuration::Algorithm::Analysis:analyzeSolution(); break;
-    case Configuration::Algorithm::RelaxedTsp:solveWithTSPRelaxed(sln); break;
+    case Configuration::Algorithm::RelaxedTsp:solveWithTspRelaxed(sln); break;
+    case Configuration::Algorithm::IterativeModel:solveWithIterativeModel(sln); break;
     case Configuration::Algorithm::Test:solveWithTest(sln); break;
     case Configuration::Algorithm::CompleteModel:
     default:
@@ -325,7 +326,7 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
     return true;
 }
 
-bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
+bool Solver::solveWithTspRelaxed(Solution & sln, bool findFeasibleFirst) {
     IrpModelSolver modelSolver;
     if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
 
@@ -348,7 +349,7 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
                 }
             }
             cout << "\nSolving period " << t;
-            if (!generateRouting(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], modelSolver.input)) {
+            if (!generateRoutingWithLkh(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], modelSolver.input)) {
                 cout << "Period " << t << " has not solved." << endl;
                 return false;
             }
@@ -361,6 +362,8 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
     // writePathToCsv(presetX);
     
     sln.totalCost = holdingObj + routingObj;
+    retrieveOutputFromModel(sln, presetX);
+    return true;
 
     // count visited times.
     List<int> nodeVisitedTimes(input.nodes_size(), 0);
@@ -392,7 +395,7 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
         ID quantity;
 
         NodeStatus() :period(-1), preNode(-1), postNode(-1), quantity(0) {}
-        NodeStatus(ID p, ID pre, ID post, ID q) :period(p), preNode(pre), postNode(post), quantity(q) {}
+        NodeStatus(ID t, ID pre, ID post, ID q) :period(t), preNode(pre), postNode(post), quantity(q) {}
     };
     // 交换相邻两个周期的配送
     // 原则：均衡每个周期访问次数
@@ -775,27 +778,228 @@ bool Solver::solveWithTSPRelaxed(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
-    IrpModelSolver modelSolver;
-    if (findFeasibleFirst) { modelSolver.setFindFeasiblePreference(); }
+    IrpModelSolver irpSolver;
+    if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
 
-    convertToModelInput(modelSolver.input, input);
-    modelSolver.routingCost = aux.routingCost;
-    if (!modelSolver.solveIteratively()) { return false; }
+    convertToModelInput(irpSolver.input, input);
+    irpSolver.routingCost = aux.routingCost;
+    if (!irpSolver.solveIteratively()) { return false; }
 
-    IrpModelSolver::PresetX &presetX(modelSolver.presetX);
-    double elapsedSeconds = modelSolver.getDurationInSecond();
-    double holdingObj = modelSolver.currentObjective.holdingCost;
-    double routingObj = modelSolver.currentObjective.routingCost;
-    sln.totalCost = modelSolver.currentObjective.totalCost;
+    IrpModelSolver::PresetX &presetX(irpSolver.presetX);
+    IrpModelSolver::PresetX bestSln(irpSolver.presetX);
+    double minCost = irpSolver.currentObjective.totalCost;
+    double elapsedSeconds = irpSolver.getDurationInSecond();
+    double holdingObj = irpSolver.currentObjective.holdingCost;
+    double routingObj = irpSolver.currentObjective.routingCost;
+    sln.totalCost = irpSolver.currentObjective.totalCost;
+    cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
+
+    List<List<Set<ID>>> unvisitedNodes(input.vehicles_size(), List<Set<ID>>(input.periodnum()));
+    presetX.xVisited.resize(input.vehicles_size());
+    for (ID v = 0; v < input.vehicles_size(); ++v) {
+        presetX.xVisited[v].resize(input.periodnum());
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            presetX.xVisited[v][t].resize(input.nodes_size(), false);
+            for (ID i = 0; i < input.nodes_size(); ++i) {
+                if (presetX.xQuantity[v][t][i] > IrpModelSolver::DefaultDoubleGap) {
+                    presetX.xVisited[v][t][i] = true;
+                } else {
+                    unvisitedNodes[v][t].insert(i);
+                }
+            }
+        }
+    }
+    struct AddMove {
+        ID vehicle;
+        ID period;
+        ID node;
+        ID preNode;
+        ID postNode;
+
+        AddMove() :vehicle(-1), period(-1), node(-1), preNode(-1), postNode(-1) {}
+        AddMove(ID v, ID t, ID i, ID pre, ID post) :vehicle(v), period(t), node(i), preNode(pre), postNode(post) {}
+    };
+    int iter = 151;
+    while (iter < 150) {
+        if (iter % 5 > 0) {
+            double bestDelta = IrpModelSolver::Infinity;
+            AddMove bestMove;
+            for (ID v = 0; v < input.vehicles_size(); ++v) {
+                for (ID t = 0; t < input.periodnum(); ++t) {
+                    // skip non-delivered period.
+                    if (unvisitedNodes.size() >= input.nodes_size()) { continue; }
+                    for (auto ins = unvisitedNodes[v][t].begin(); ins != unvisitedNodes[v][t].end(); ++ins) {
+                        double objDelta = 0;
+                        // estimate holding cost
+                        objDelta += (input.nodes()[*ins].holdingcost() - input.nodes()[0].holdingcost()) * input.nodes()[*ins].capacity();
+                        // find insert position, estimate routing cost
+                        double rc = IrpModelSolver::Infinity;
+                        ID preNode = -1, postNode = -1;
+                        int posCount = 0;
+                        for (ID i = 0; i < input.nodes_size(); ++i) {
+                            for (ID j = 0; j < input.nodes_size(); ++j) {
+                                if (i == j) { continue; }
+                                if (!presetX.xEdge[v][t][i][j]) { continue; }
+                                if (aux.routingCost[i][*ins] + aux.routingCost[*ins][j] - aux.routingCost[i][j] < rc) {
+                                    rc = aux.routingCost[i][*ins] + aux.routingCost[*ins][j] - aux.routingCost[i][j];
+                                    preNode = i;
+                                    postNode = j;
+                                    posCount = 1;
+                                } else if (aux.routingCost[i][*ins] + aux.routingCost[*ins][j] - aux.routingCost[i][j] == rc) {
+                                    ++posCount;
+                                    if (rand() % posCount < 1) {
+                                        preNode = i;
+                                        postNode = j;
+                                    }
+                                }
+                            }
+                        }
+                        if (posCount <= 0) { continue; }
+                        objDelta += rc;
+                        if (objDelta < bestDelta) {
+                            bestDelta = objDelta;
+                            bestMove = { v, t, *ins, preNode, postNode };
+                        }
+                    }
+
+                }
+            }
+            if (bestMove.node < 0) { break; }
+            //cout << "Visit " << bestMove.node << " at Period " << bestMove.period << endl;
+            presetX.xVisited[bestMove.vehicle][bestMove.period][bestMove.node] = true;
+            unvisitedNodes[bestMove.vehicle][bestMove.period].erase(bestMove.node);
+
+            IrpModelSolver inventorySolver(irpSolver.input);
+            if (findFeasibleFirst) { inventorySolver.setFindFeasiblePreference(); }
+
+            inventorySolver.routingCost = aux.routingCost;
+            inventorySolver.enablePresetSolution();
+            inventorySolver.presetX.xVisited = presetX.xVisited;
+
+            if (!inventorySolver.solveInventoryModel()) { return false; }
+
+            presetX.xQuantity = inventorySolver.presetX.xQuantity;
+            holdingObj = inventorySolver.getHoldingCostInPeriod(0, input.periodnum());
+            routingObj = 0;
+            for (int v = 0; v < input.vehicles_size(); ++v) {
+                for (int t = 0; t < input.periodnum(); ++t) {
+                    for (int i = 0; i < input.nodes_size(); ++i) {
+                        for (int j = 0; j < input.nodes_size(); ++j) {
+                            presetX.xEdge[v][t][i][j] = false;
+                        }
+                    }
+                    cout << "\nSolving period " << t;
+                    if (!generateRoutingWithLkh(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], irpSolver.input)) {
+                        cout << "Period " << t << " has not solved." << endl;
+                        return false;
+                    }
+                }
+            }
+            cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
+            sln.totalCost = (holdingObj + routingObj);
+        } else {
+            while (true) {
+                double decreasedCost = 0;
+                ID deletePeriod = -1, deleteVehicle = -1;
+                ID deleteNode = -1, preNode = -1, postNode = -1;
+                for (ID t = 0; t < input.periodnum(); ++t) {
+                    for (ID v = 0; v < input.vehicles_size(); ++v) {
+                        if (presetX.xQuantity[v][t][0] < IrpModelSolver::DefaultDoubleGap) { continue; }
+                        for (ID i = 1; i < input.nodes_size(); ++i) {
+                            if (presetX.xQuantity[v][t][i] < IrpModelSolver::DefaultDoubleGap) { continue; }
+                            bool valid = true;
+                            //if (presetX.xQuantity[v][t][i] + presetX.xQuantity[v][t][0] > input.vehicles()[v].capacity()) { continue; }
+                            int restQuantity = input.nodes()[i].initquantity();
+                            for (ID j = 0; j < input.periodnum(); ++j) {
+                                restQuantity -= input.nodes()[i].unitdemand();
+                                restQuantity += (j == t) ? 0 : lround(presetX.xQuantity[v][j][i]);
+                                if (restQuantity < 0) { valid = false; }
+                            }
+                            if (valid) {
+                                double delta = (input.nodes()[i].holdingcost() - input.nodes()[0].holdingcost()) * lround(presetX.xQuantity[v][t][i]) * (input.periodnum() - t);
+                                ID pre = -1, post = -1;
+                                for (ID j = 0; j < input.nodes_size(); ++j) {
+                                    if (i == j) { continue; }
+                                    if (presetX.xEdge[v][t][i][j]) {
+                                        post = j;
+                                    }
+                                    if (presetX.xEdge[v][t][j][i]) {
+                                        pre = j;
+                                    }
+                                    if ((pre >= 0) && (post >= 0)) { break; }
+                                }
+                                delta += aux.routingCost[pre][i] + aux.routingCost[i][post] - aux.routingCost[pre][post];
+
+                                if (delta > decreasedCost) {
+                                    decreasedCost = delta;
+                                    deleteVehicle = v;
+                                    deletePeriod = t;
+                                    deleteNode = i;
+                                    preNode = pre;
+                                    postNode = post;
+                                }
+                            }
+                        }
+                    }
+                }
+                //cout << deleteNode << "," << deletePeriod << "," << decreasedCost << endl;
+                if (decreasedCost <= 0) {
+                    break;
+                }
+
+                presetX.xQuantity[deleteVehicle][deletePeriod][0] -= lround(presetX.xQuantity[deleteVehicle][deletePeriod][deleteNode]);
+                presetX.xQuantity[deleteVehicle][deletePeriod][deleteNode] = 0;
+                presetX.xEdge[deleteVehicle][deletePeriod][preNode][deleteNode] = false;
+                presetX.xEdge[deleteVehicle][deletePeriod][deleteNode][postNode] = false;
+                presetX.xEdge[deleteVehicle][deletePeriod][preNode][postNode] = true;
+                presetX.xVisited[deleteVehicle][deletePeriod][deleteNode] = false;
+                unvisitedNodes[deleteVehicle][deletePeriod].insert(deleteNode);
+                sln.totalCost -= decreasedCost;
+                cout << sln.totalCost << "\t";
+            }
+            cout << endl;
+        }
+        //recordSolution(originInput, presetX);
+        if (sln.totalCost < minCost) {
+            bestSln = presetX;
+            minCost = sln.totalCost;
+        }
+        ++iter;
+    }
+    
+    retrieveOutputFromModel(sln, bestSln);
+    return true;
+}
+
+bool Solver::solveWithIterativeModel(Solution & sln, bool findFeasibleFirst) {
+    IrpModelSolver irpSolver;
+    if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
+
+    convertToModelInput(irpSolver.input, input);
+    irpSolver.routingCost = aux.routingCost;
+    if (!irpSolver.solveIteratively()) { return false; }
+
+    IrpModelSolver::PresetX &presetX(irpSolver.presetX);
+    double elapsedSeconds = irpSolver.getDurationInSecond();
+    double holdingObj = irpSolver.currentObjective.holdingCost;
+    double routingObj = irpSolver.currentObjective.routingCost;
+    sln.totalCost = irpSolver.currentObjective.totalCost;
     cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
 
     // record path.
     // writePathToCsv(presetX);
-    
+
     // local search?
-    // add nodes
-    while (true) {
-        // TODO[qym][5]: 
+    // TODO[qym][5]:  add nodes
+    while (false) {
+        double delta = INT_MAX;
+        for (ID v = 0; v < input.vehicles_size(); ++v) {
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                for (ID i = 0; i < input.nodes_size(); ++i) {
+                    ;
+                }
+            }   
+        }
     }
     // remove nodes.
     while (true) {
@@ -857,7 +1061,7 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
         cout << sln.totalCost << endl;
     }
 
-    retrieveOutputFromModel(sln, modelSolver.presetX);
+    retrieveOutputFromModel(sln, irpSolver.presetX);
     return true;
 }
 
@@ -1105,27 +1309,26 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
         rq[i->id()][0] = i->initquantity();
     }
     auto &allRoutes(*sln.mutable_allroutes());
-    for (ID p = 0; p < input.periodnum(); ++p) {
+    for (ID t = 0; t < input.periodnum(); ++t) {
         auto &routeInPeriod(*allRoutes.Add());
         for (ID v = 0; v != input.vehicles_size(); ++v) {
             auto &route(*routeInPeriod.add_routes());
-            // TODO[qym][5]:
-            if (!presetX.xEdge[v][p].empty()) {
+            if (!presetX.xEdge[v][t].empty()) {
                 ID i = 0;
                 do {
                     for (ID j = 0; j < input.nodes_size(); ++j) {
                         if (i == j) { continue; }
-                        if (!presetX.xEdge[v][p][i][j]) { continue; }
+                        if (!presetX.xEdge[v][t][i][j]) { continue; }
                         auto &delivery(*route.add_deliveries());
                         delivery.set_node(j);
-                        delivery.set_quantity(lround(presetX.xQuantity[v][p][j]));
+                        delivery.set_quantity(lround(presetX.xQuantity[v][t][j]));
 
                         routingCost += aux.routingCost[i][j];
                         if (j == 0) {
-                            delivery.set_quantity(-lround(presetX.xQuantity[v][p][j]));
-                            restQuantity[j] -= lround(presetX.xQuantity[v][p][j]);
+                            delivery.set_quantity(-lround(presetX.xQuantity[v][t][j]));
+                            restQuantity[j] -= lround(presetX.xQuantity[v][t][j]);
                         } else {
-                            restQuantity[j] += lround(presetX.xQuantity[v][p][j]);
+                            restQuantity[j] += lround(presetX.xQuantity[v][t][j]);
                         }
                         i = j;
                         break;
@@ -1136,7 +1339,7 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
         for (auto i = input.nodes().begin(); i != input.nodes().end(); ++i) {
             restQuantity[i->id()] -= i->unitdemand();
             holdingCost += i->holdingcost() * restQuantity[i->id()];
-            rq[i->id()][p + 1] = restQuantity[i->id()];
+            rq[i->id()][t + 1] = restQuantity[i->id()];
         }
     }
 
@@ -1293,6 +1496,53 @@ bool Solver::generateRouting(List<List<bool>>& edges, double & obj, double & sec
             edges[nodeIndices[i]][nodeIndices[j]] = routeSolver.presetX.xEdge[0][0][i][j];
         }
     }
+    return true;
+}
+
+bool Solver::generateRoutingWithLkh(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const IrpModelSolver::Input inp) {
+    // if no delivery quantity in the period, return true.
+    if (quantity.empty() || (quantity[0] < IrpModelSolver::DefaultDoubleGap)) {
+        std::cout << " with 0 nodes.\n\n";
+        return true;
+    }
+
+    lkh::Tour tour;
+    List<ID> visitedNodes;
+    edges.resize(inp.nodeNum);
+    for (ID i = 0; i < inp.nodeNum; ++i) {
+        edges[i].resize(inp.nodeNum, false);
+        if (quantity[i] > IrpModelSolver::DefaultDoubleGap) {
+            visitedNodes.push_back(i);
+        }
+    }
+    if (visitedNodes.size() < 2) { return true; }
+    std::cout << " with " << visitedNodes.size() << " nodes.\n\n";
+
+    if (visitedNodes.size() >= 3) {
+        lkh::CoordList2D coordList(visitedNodes.size());
+        for (int i = 0; i < visitedNodes.size(); ++i) {
+            coordList[i].x = inp.nodes[visitedNodes[i]].xCoord;
+            coordList[i].y = inp.nodes[visitedNodes[i]].yCoord;
+        }
+        if (lkh::solveTsp(tour, coordList)) {
+            //cout << "Failed to optimize period " << t << endl;
+            //return false;
+        }
+        obj += tour.distance;
+
+        // adjust node id on tour.
+        ID preNode = 0;
+        for (int i = 1; i < tour.nodes.size(); ++i) {
+            edges[preNode][visitedNodes[tour.nodes[i]]] = true;
+            preNode = visitedNodes[tour.nodes[i]];
+        }
+        edges[preNode][0] = true;
+    } else {
+        edges[visitedNodes[0]][visitedNodes[1]] = true;
+        edges[visitedNodes[1]][visitedNodes[0]] = true;
+        obj += aux.routingCost[visitedNodes[0]][visitedNodes[1]] + aux.routingCost[visitedNodes[1]][visitedNodes[0]];
+    }
+
     return true;
 }
 
