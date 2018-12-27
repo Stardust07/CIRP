@@ -15,7 +15,7 @@ std::string str(const T &obj, Ts ... objs) { return str(obj) + Delimiter + str(o
 namespace szx {
 
 bool IrpModelSolver::solve() {
-    initRoutingCost();
+    initSolver();
 
     addDecisionVars();
     addPathConnectivityConstraint();
@@ -55,7 +55,9 @@ bool IrpModelSolver::solve() {
 }
 
 bool IrpModelSolver::solveIteratively() {
-    initRoutingCost();
+    bool lazy = true;
+
+    initSolver();
     relaxTspSubtourConstraint();
     currentObjective = { 0, 0, INFINITY };
 
@@ -65,40 +67,76 @@ bool IrpModelSolver::solveIteratively() {
     addLoadDeliveryBalanceConstraint();
     addCustomerLevelConstraint();
     addSupplierLevelConstraint();
-
-    InfeasibleFound cb(*this);
-    mpSolver.setCallback(&cb);
     setTotalCostObjective();
-    if (!mpSolver.optimize()) {
-        elapsedSeconds = mpSolver.getDurationInSecond();
-        return false;
-    }
 
-    List2D<lkh::Tour> tours;
-    double holdingCost = getHoldingCost(x.xQuantity, [&](const MpSolver::DecisionVar &var) { return mpSolver.getValue(var); });
-    double routingCost = solveVrpWithLkh(tours, [&](ID v, ID t, ID i) { return (mpSolver.getValue(x.xQuantity[v][t][i]) > DefaultDoubleGap); });
-    if (routingCost < 0) {
-        // failed to solve tsp with lkh
-    }
+    // use lazy constraint
+    if(lazy) {
+        InfeasibleFound cb(*this);
+        mpSolver.setCallback(&cb);
+        //mpSolver.makeConstraint(x.xQuantity[0][0][0] <= 0);
+        //mpSolver.makeConstraint(x.xQuantity[0][5][0] <= 0);
+        if (!mpSolver.optimize()) {
+            elapsedSeconds = mpSolver.getDurationInSecond();
+            return (currentObjective.totalCost < INFINITY);
+        }
+    } else { // model
+        while (elapsedSeconds < DefaultTimeLimitSecond) {
+            if (!mpSolver.optimize()) {
+                elapsedSeconds = mpSolver.getDurationInSecond();
+                return (currentObjective.totalCost < INFINITY);
+            }
+            elapsedSeconds += mpSolver.getDurationInSecond();
+            // solve tsp with lkh.
+            List2D<lkh::Tour> tours;
+            double holdingCost = getHoldingCostInPeriod(0, input.periodNum);
+            double routingCost =
+                solveVrpWithLkh(tours, [&](ID v, ID t, ID i) { return (mpSolver.getValue(x.xQuantity[v][t][i]) > DefaultDoubleGap); });
+            if (routingCost < 0) {
+                // failed to solve tsp with lkh
+                ;
+            }
 
-    // update optimal.
-    if (holdingCost + routingCost < currentObjective.totalCost) {
-        cout << "* ";
-        currentObjective.holdingCost = holdingCost;
-        currentObjective.routingCost = routingCost;
-        currentObjective.totalCost = holdingCost + routingCost;
-        retrieveDeliveryQuantity(presetX, [&](ID v, ID t, ID i) { return mpSolver.getValue(x.xQuantity[v][t][i]); });
-        convertTourToEdges(presetX, tours);
-    }
-    cout << (holdingCost + routingCost) << "(T) = " << holdingCost << "(H) + " << routingCost << "(R)" << endl;
+            // update optimal.
+            if (holdingCost + routingCost < currentObjective.totalCost) {
+                cout << "* ";
+                currentObjective.holdingCost = holdingCost;
+                currentObjective.routingCost = routingCost;
+                currentObjective.totalCost = holdingCost + routingCost;
+                retrieveDeliveryQuantity(presetX, [&](ID v, ID t, ID i) { return mpSolver.getValue(x.xQuantity[v][t][i]); });
+                convertTourToEdges(presetX, tours);
+            }
+            cout << (holdingCost + routingCost) << "(T) = " << holdingCost << "(H) + " << routingCost << "(R)" << endl;
 
+            // forbid current solution with lazy constraints
+            // gurantee that visited node set different from current solution.
+            MpSolver::LinearExpr nodeDiff = 0;
+            for (ID v = 0; v < input.vehicleNum; ++v) {
+                for (ID t = 0; t < input.periodNum; ++t) {
+                    for (ID i = 1; i < input.nodeNum; ++i) {
+                        MpSolver::LinearExpr degree = 0;
+                        for (ID j = 0; j < input.nodeNum; ++j) {
+                            if (j == i) { continue; }
+                            degree += x.xEdge[v][t][i][j];
+                        }
+                        if (mpSolver.getValue(x.xQuantity[v][t][i]) <= DefaultDoubleGap) {
+                            // unvisited node.
+                            nodeDiff += degree;
+                        } else {
+                            // visited node.
+                            nodeDiff += 1 - degree;
+                        }
+                    }
+                }
+            }
+            mpSolver.makeConstraint(nodeDiff >= 1);
+        }
+    }
     return true;
 }
 
 bool IrpModelSolver::solveInventoryModel() {
+    initSolver();
     cfg.useBenchmark = false;
-    initRoutingCost();
-    initSkipNodes();
 
     addInventoryVariables();
     addNodeCapacityConstraint();
@@ -109,6 +147,7 @@ bool IrpModelSolver::solveInventoryModel() {
         return false;
     }
 
+    // retrieve solution
     presetX.xQuantity.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xQuantity[v].resize(input.periodNum);
@@ -137,8 +176,8 @@ bool IrpModelSolver::solveInventoryModel() {
 }
 
 bool IrpModelSolver::solveTspModel() {
+    initSolver();
     cfg.useBenchmark = false;
-    initRoutingCost();
 
     addRoutingVariables();
     addNodeDegreeConstraints();
@@ -148,6 +187,8 @@ bool IrpModelSolver::solveTspModel() {
         elapsedSeconds = mpSolver.getDurationInSecond();
         return false;
     }
+
+    // retrieve solution
     presetX.xEdge.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xEdge[v].resize(input.periodNum);
@@ -167,11 +208,10 @@ bool IrpModelSolver::solveTspModel() {
 }
 
 bool IrpModelSolver::optimizeInventory() {
+    initSolver();
     cfg.useBenchmark = false;
-    initRoutingCost();
-    initSkipNodes();
 
-    // 经过哪些点是确定的，优化库存 
+    // optimize inventory only while the visited node set is determined. 
     addInventoryVariables();
     addNodeCapacityConstraint();
     addQuantityConsistencyConstraint();
@@ -181,6 +221,8 @@ bool IrpModelSolver::optimizeInventory() {
         elapsedSeconds = mpSolver.getDurationInSecond();
         return false;
     }
+
+    // retrieve solution
     presetX.xQuantity.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xQuantity[v].resize(input.periodNum);
@@ -329,8 +371,6 @@ void IrpModelSolver::saveSolution(const Input &input, const PresetX &presetX, co
 }
 
 void IrpModelSolver::addDecisionVars() {
-    initSkipNodes();
-    
     x.xEdge.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xEdge[v].resize(input.periodNum);
@@ -523,6 +563,9 @@ void IrpModelSolver::addSupplierLevelConstraint() {
                 restQuantity -= x.xQuantity[v][t][0];
             }
         }
+        // TODO[qym][5]: adjust the order 
+        //mpSolver.makeConstraint(restQuantity >= input.nodes[0].minLevel, "sr");
+        //restQuantity += input.nodes[0].unitDemand;
         restQuantity += input.nodes[0].unitDemand;
         mpSolver.makeConstraint(restQuantity >= input.nodes[0].minLevel, "sr");
     }
@@ -888,6 +931,12 @@ double IrpModelSolver::getHoldingCost(const List2D<List<MpSolver::DecisionVar>> 
 }
 
 double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<bool(ID, ID, ID)> isVisited) {
+    // add tsp cache
+    //const String TspCacheDir("TspCache/");
+    //System::makeSureDirExist(TspCacheDir);
+    //CachedTspSolver tspSolver(nodeNum, TspCacheDir + env.friendlyInstName() + ".csv");
+
+
     double routingObj = 0;
     tours.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
@@ -903,7 +952,7 @@ double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<b
 
             lkh::Tour tour;
             if (visitedNodes.size() >= 3) {
-                lkh::CoordList2D coordList(visitedNodes.size());
+                lkh::CoordList2D coordList(visitedNodes.size()); 
                 for (int i = 0; i < visitedNodes.size(); ++i) {
                     coordList[i].x = input.nodes[visitedNodes[i]].xCoord;
                     coordList[i].y = input.nodes[visitedNodes[i]].yCoord;
@@ -924,7 +973,7 @@ double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<b
                 tours[v][t].nodes = visitedNodes;
                 tours[v][t].distance = routingCost[visitedNodes[0]][visitedNodes[1]]+ routingCost[visitedNodes[1]][visitedNodes[0]];
             }
-            
+            //cout << "Period " << t << "\t" << tours[v][t].nodes.size() << "\t" << tours[v][t].distance << endl;
         }
     }
     return routingObj;
@@ -1181,6 +1230,7 @@ void IrpModelSolver::TspSolutionFound::callback() {
 void IrpModelSolver::InfeasibleFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
+            if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > min(solver.currentObjective.totalCost , input.referenceObjective)) { return; }
             // solve tsp with lkh.
             List2D<lkh::Tour> tours;
             double holdingCost = getHoldingCost();
@@ -1188,9 +1238,143 @@ void IrpModelSolver::InfeasibleFound::callback() {
                 solver.solveVrpWithLkh(tours, [&](ID v, ID t, ID i) { return (getSolution(solver.x.xQuantity[v][t][i]) > DefaultDoubleGap); });
             if (routingCost < 0) {
                 // failed to solve tsp with lkh
-                ;
             }
 
+            // forbid current solution with lazy constraints
+            int strategy = 2;
+            if (strategy == 1) {
+                // make the visited nodes set different at a randomly selected period.
+                ID v = rand() % input.vehicleNum;
+                ID t = rand() % input.periodNum;
+                MpSolver::LinearExpr diffCount = 0;
+                for (ID i = 1; i < input.nodeNum; ++i) {
+                    bool visited = false;
+                    MpSolver::LinearExpr degree = 0;
+                    for (ID j = 0; j < input.nodeNum; ++j) {
+                        if (j == i) { continue; }
+                        if (isTrue(solver.x.xEdge[v][t][i][j])) { visited = true; }
+                        degree += solver.x.xEdge[v][t][i][j];
+                    }
+                    if (visited) {
+                        // visited node.
+                        diffCount += 1 - degree;
+                    } else {
+                        // unvisited node.
+                        diffCount += degree;
+                    }
+                }
+                addLazy(diffCount >= 1);
+            }
+
+            if (strategy == 2) {
+                ostringstream oss;
+                // gurantee that visited node set different from current solution.
+                MpSolver::LinearExpr diffCount = 0;
+                for (ID v = 0; v < input.vehicleNum; ++v) {
+                    for (ID t = 0; t < input.periodNum; ++t) {
+                        oss << "Period " << t << endl;
+                        for (ID i = 0; i < input.nodeNum; ++i) {
+                            bool visited = false;
+                            MpSolver::LinearExpr degree = 0;
+                            for (ID j = 0; j < input.nodeNum; ++j) {
+                                if (j == i) { continue; }
+                                if (isTrue(solver.x.xEdge[v][t][i][j])) { visited = true; }
+                                degree += solver.x.xEdge[v][t][i][j];
+                            }
+                            if (visited) {
+                                // visited node.
+                                diffCount += 1 - degree;
+                            } else {
+                                // unvisited node.
+                                diffCount += degree;
+                            }
+                            oss << visited << "," << getSolution(solver.x.xQuantity[v][t][i]) << endl;
+                        }
+                        oss << endl;
+                    }
+                }
+                addLazy(diffCount >= 1);
+
+                //ofstream ofs("ttttext.csv", ios::app);
+                //ofs << oss.str() << (holdingCost + routingCost) << endl;
+                //ofs.close();
+            }
+
+            // 禁掉离仓库太远的子回路
+            if (strategy == 3) {
+                ID selectedPeriod = -1;
+                double maxIncrease = 0;
+                for (ID v = 0; v < input.vehicleNum; ++v) {
+                    for (ID t = 0; t < input.periodNum; ++t) {
+                        double delta = tours[v][t].distance;
+                        for (ID i = 0; i < input.nodeNum; ++i) {
+                            for (ID j = 0; j < input.nodeNum; ++j) {
+                                if (i == j) { continue; }
+                                if (!isTrue(solver.x.xEdge[v][t][i][j])) { continue; }
+                                delta -= solver.routingCost[i][j];
+                            }
+                        }
+                        cout << t << "\t" << delta << "\n";
+                        if (delta > maxIncrease) {
+                            maxIncrease = delta;
+                            selectedPeriod = t;
+                        }
+                    }
+                }
+                if (selectedPeriod < 0) {
+                    return;
+                }
+                List<ID> nodes;
+                for (ID i = 0; i < input.nodeNum; ++i) {
+                    if (getSolution(solver.x.xQuantity[0][selectedPeriod][i]) > DefaultDoubleGap) {
+                        nodes.push_back(i);
+                    }
+                }
+                for (ID v = 0; v < input.vehicleNum; ++v) {
+                    for (ID t = 0; t < input.periodNum; ++t) {
+                        MpSolver::LinearExpr expr = 0;
+                        for (auto i = nodes.begin(); i != nodes.end(); ++i) {
+                            for (ID j = 0; j < input.nodeNum; ++j) {
+                                if (*i == j) { continue; }
+                                expr -= solver.x.xEdge[v][t][*i][j];
+                            }
+                        }
+                        addLazy(expr <= nodes.size() - 1);
+                    }
+                }
+                // find subtours.
+                //for (ID v = 0; v < input.vehicleNum; ++v) {
+                //    for (ID t = 0; t < input.periodNum; ++t) {
+                //        List<bool> visited(input.nodeNum, false);
+                //        List<List<ID>> subTours;
+                //        for (ID i = 0; i < input.nodeNum; ++i) {
+                //            if (visited[i]) { continue; }
+                //            ID p = i;
+                //            List<ID> subTour;
+                //            do {
+                //                for (ID j = 0; j < input.nodeNum; ++j) {
+                //                    if (p == j) { continue; }
+                //                    if (isTrue(solver.x.xEdge[v][t][p][j])) {
+                //                        subTour.push_back(p);
+                //                        visited[p] = true;
+                //                        p = j;
+                //                        break;
+                //                    }
+                //                }
+                //            } while (p != i);
+                //            if (subTour.size() > 0) { subTour.push_back(p); subTours.push_back(subTour); }
+                //        }
+                //        for (auto s = subTours.begin(); s != subTours.end(); ++s) {
+                //            for (auto n = s->begin(); n != s->end(); ++n) {
+                //                cout << *n << "\t";
+                //            }
+                //            cout << endl;
+                //        }
+                //        cout << endl;
+                //    }
+                //}
+            }
+            
             // update optimal.
             if (holdingCost + routingCost < solver.currentObjective.totalCost) {
                 cout << "* ";
@@ -1201,126 +1385,6 @@ void IrpModelSolver::InfeasibleFound::callback() {
                 solver.convertTourToEdges(solver.presetX, tours);
             }
             cout << (holdingCost + routingCost) << "(T) = " << holdingCost << "(H) + " << routingCost << "(R)" << endl;
-
-            // forbid current solution with lazy constraints
-            int strategy = 2;
-            if (strategy == 1) {
-                // make the visited nodes set different at a randomly selected period.
-                ID v = rand() % input.vehicleNum;
-                ID t = rand() % input.periodNum;
-                MpSolver::LinearExpr expr = 0;
-                int varCount = 0;
-                for (ID i = 1; i < input.nodeNum; ++i) {
-                    MpSolver::LinearExpr degree = 0;
-                    for (ID j = 0; j < input.nodeNum; ++j) {
-                        if (j == i) { continue; }
-                        degree += solver.x.xEdge[v][t][i][j];
-                    }
-                    if (getSolution(solver.x.xQuantity[v][t][i]) <= DefaultDoubleGap) {
-                        // unvisited node.
-                        expr += 1 - degree;
-                        ++varCount;
-                    } else {
-                        // visited node.
-                        expr += degree;
-                        ++varCount;
-                    }
-                }
-                addLazy(expr <= varCount - 1);
-            }
-
-            if (strategy == 2) {
-                // gurantee that visited node set different from current solution
-                int varCount = 0;
-                MpSolver::LinearExpr expr = 0;
-                for (ID v = 0; v < input.vehicleNum; ++v) {
-                    for (ID t = 0; t < input.periodNum; ++t) {
-                        for (ID i = 1; i < input.nodeNum; ++i) {
-                            MpSolver::LinearExpr degree = 0;
-                            for (ID j = 0; j < input.nodeNum; ++j) {
-                                if (j == i) { continue; }
-                                degree += solver.x.xEdge[v][t][i][j];
-                            }
-                            if (getSolution(solver.x.xQuantity[v][t][i]) <= DefaultDoubleGap) {
-                                // unvisited node.
-                                expr += 1 - degree;
-                                ++varCount;
-                            } else {
-                                // visited node.
-                                expr += degree;
-                                ++varCount;
-                            }
-                        }
-                    }
-                }
-                addLazy(expr <= varCount - 1);
-            }
-
-            // 禁掉离仓库太远的子回路
-            if (strategy == 3) {
-                ID n1 = -1, n2 = -1;
-                double cost = 0;
-                for (ID v = 0; v < input.vehicleNum; ++v) {
-                    for (ID t = 0; t < input.periodNum; ++t) {
-                        for (ID i = 0; i < input.nodeNum; ++i) {
-                            for (ID j = 0; j < input.nodeNum; ++j) {
-                                if (i == j) { continue; }
-                                if ((getSolution(solver.x.xQuantity[v][t][i]) < DefaultDoubleGap)
-                                    || (getSolution(solver.x.xQuantity[v][t][j]) < DefaultDoubleGap)) {
-                                    continue;
-                                }
-                                if (solver.routingCost[i][j] > cost) {
-                                    n1 = i;
-                                    n2 = j;
-                                    cost = solver.routingCost[i][j];
-                                }
-                            }
-                        }
-                        //List<bool> visited(input.nodeNum, false);
-                        //List<List<ID>> subTours;
-                        //for (ID i = 0; i < input.nodeNum; ++i) {
-                        //    if (visited[i]) { continue; }
-                        //    ID p = i;
-                        //    List<ID> subTour;
-                        //    do {
-                        //        for (ID j = 0; j < input.nodeNum; ++j) {
-                        //            if (p == j) { continue; }
-                        //            if (isTrue(solver.x.xEdge[v][t][p][j])) {
-                        //                subTour.push_back(p);
-                        //                visited[p] = true;
-                        //                p = j;
-                        //                break;
-                        //            }
-                        //        }
-                        //    } while (p != i);
-                        //    if (subTour.size() > 0) { subTour.push_back(p); subTours.push_back(subTour); }
-                        //}
-                        //for (auto s = subTours.begin(); s != subTours.end(); ++s) {
-                        //    for (auto n = s->begin(); n != s->end(); ++n) {
-                        //        cout << *n << "\t";
-                        //    }
-                        //    cout << endl;
-                        //}
-                        //cout << endl;
-                    }
-                }
-                if(n1 >= 0 && n2 >= 0) {
-                    for (ID v = 0; v < input.vehicleNum; ++v) {
-                        for (ID t = 0; t < input.periodNum; ++t) {
-                            MpSolver::LinearExpr expr = 0;
-                            for (ID i = 0; i < input.nodeNum; ++i) {
-                                if (i != n1) {
-                                    expr += solver.x.xEdge[v][t][n1][i];
-                                }
-                                if (i != n2) {
-                                    expr += solver.x.xEdge[v][t][n2][i];
-                                }
-                            }
-                            addLazy(expr <= 1);
-                        }
-                    }
-                }
-            }
         }
     } catch (GRBException e) {
         cout << "Error number: " << e.getErrorCode() << endl;

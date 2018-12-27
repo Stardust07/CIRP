@@ -15,6 +15,7 @@
 #include "Common.h"
 #include "MpSolverGurobi.h"
 #include "LKH3Lib/lkhSolver.h"
+#include "LKH3Lib/CachedTspSolver.h"
 
 
 namespace szx {
@@ -68,7 +69,7 @@ public:
     static constexpr double Infinity = MpSolver::Infinity;
     static constexpr auto DefaultObjectiveOptimaOrientation = MpSolver::OptimaOrientation::Minimize;
     static constexpr int MillisecondsPerSecond = 1000;
-    static constexpr int DefaultTimeLimitSecond = 7200;
+    static constexpr int DefaultTimeLimitSecond = 600;
     static constexpr int DefaultMaxThreadNum = 4;
     static constexpr int DefaultSlideWindowSize = 3;
     static constexpr double DefaultDoubleGap = 0.001;
@@ -76,12 +77,9 @@ public:
 
     #pragma region Constructor
 public:
-    IrpModelSolver() : callback(*this), tspCallback(*this) {
-        initSolver();
-    }
+    IrpModelSolver() : callback(*this), tspCallback(*this) {}
     IrpModelSolver(const Input &inp, bool useBenchmark = true) : input(inp), callback(*this), tspCallback(*this) {
         cfg.useBenchmark = useBenchmark;
-        initSolver();
     }
     #pragma endregion Constructor
 
@@ -153,6 +151,10 @@ protected:
     void addSupplierLevelConstraint();
     void addSubtourEliminationConstraint();
     void setTotalCostObjective() {
+        //double k = 4;
+        //mpSolver.setObjective(
+        //    (routingCostInPeriod(0, input.periodNum) + k * holdingCostInPeriod(0, input.nodeNum)),
+        //    MpSolver::OptimaOrientation::Minimize);
         mpSolver.setObjective(totalCostInPeriod(0, input.periodNum), MpSolver::OptimaOrientation::Minimize);
     }
     void setShortageQuantityObjective() {
@@ -163,21 +165,26 @@ protected:
     void setInitSolution();
     void initSolver() {
         elapsedSeconds = 0;
-        setTimeLimitInSecond(DefaultTimeLimitSecond);
-        setMaxThreadNum(DefaultMaxThreadNum);
-        setOutput(cfg.enableMpOutput);
-
         if (cfg.useBenchmark) {
             currentObjective.totalCost = 2 * input.referenceObjective;
         } else {
             currentObjective.totalCost = 0;
         }
+
+        // set mpsolver parameters
+        setTimeLimitInSecond(DefaultTimeLimitSecond);
+        setMaxThreadNum(DefaultMaxThreadNum);
+        setOutput(cfg.enableMpOutput);
+
+        // set auxilury data
+        aux.tspCacheFilePath = "";
+        initSkipNodes();
+        initRoutingCost();
     }
     void initRoutingCost() {
         if (routingCost.empty()) { 
             std::cout << "Error: missing routing cost!" << std::endl;
-            int x; 
-            std::cin >> x;
+            system("pause");
         } else {
             return;
         }
@@ -185,7 +192,7 @@ protected:
 
     void initSkipNodes(double prob = 0.75) {
         aux.skipNode = List2D<bool>(input.periodNum, List<bool>(input.nodeNum, false));
-
+        return;
         if (presetX.xQuantity.empty()) { return; }
 
         auto shouldSkipUnvisitedNode = [&](ID t, ID n, double prob) {
@@ -277,6 +284,7 @@ protected:
 
     struct {
         List2D<bool> skipNode;
+        String tspCacheFilePath;
     } aux;
 
     class SolutionFound : public GRBCallback {

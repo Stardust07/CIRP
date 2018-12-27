@@ -273,7 +273,7 @@ void Solver::init() {
         for (auto j = input.nodes().begin(); j != input.nodes().end(); ++j) {
             if (i->id() == j->id()) { continue; }
             double value = 0;
-            value = sqrt(pow(i->x() - j->x(), 2) + pow(i->y() - j->y(), 2));
+            value = hypot(i->x() - j->x(), i->y() - j->y());
             value = round(value);
             aux.routingCost[i->id()][j->id()] = value;
         }
@@ -794,6 +794,7 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
     sln.totalCost = irpSolver.currentObjective.totalCost;
     cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
 
+    writePathToCsv(presetX);
     List<List<Set<ID>>> unvisitedNodes(input.vehicles_size(), List<Set<ID>>(input.periodnum()));
     presetX.xVisited.resize(input.vehicles_size());
     for (ID v = 0; v < input.vehicles_size(); ++v) {
@@ -1350,43 +1351,74 @@ void Solver::retrieveOutputFromModel(Problem::Output & sln, const IrpModelSolver
 
 void Solver::writePathToCsv(const IrpModelSolver::PresetX & presetX) {
     ostringstream oss;
-    for (ID t = 0; t < input.periodnum(); ++t) {
-        for (ID v = 0; v < input.vehicles_size(); ++v) {
-            oss << "period " << t << endl;
+    //for (ID t = 0; t < input.periodnum(); ++t) {
+    //    for (ID v = 0; v < input.vehicles_size(); ++v) {
+    //        oss << "period " << t << endl;
 
-            List<bool> visited(input.nodes_size(), false);
-            ID i = 0;
-            if (presetX.xQuantity[v][t][0] > IrpModelSolver::DefaultDoubleGap) {
-                while (true) {
-                    for (ID j = 0; j < input.nodes_size(); ++j) {
-                        if (i == j) { continue; }
-                        if (visited[j] || !presetX.xEdge[v][t][i][j]) { continue; }
-                        if (i == 0) { oss << i << ","; }
-                        i = j;
-                        oss << i << ",";
-                        break;
-                    }
-                    visited[i] = true;
-                    if (i == 0) { oss << endl; break; }
-                }
-            }
+    //        List<bool> visited(input.nodes_size(), false);
+    //        for (ID i = 0; i < input.nodes_size(); ++i) {
+    //            if (visited[i]) { continue; }
+    //            ID p = i;
+    //            do {
+    //                for (ID j = 0; j < input.nodes_size(); ++j) {
+    //                    if (p == j) { continue; }
+    //                    if (presetX.xEdge[v][t][p][j]) {
+    //                        oss << p << ",";
+    //                        visited[p] = true;
+    //                        p = j;
+    //                        break;
+    //                    }
+    //                }
+    //            } while(p != i);
+    //            if (visited[p]) {
+    //                oss << p << "\n";
+    //            }
+    //        }
+    //        //if (presetX.xQuantity[v][t][0] > IrpModelSolver::DefaultDoubleGap) {
+    //        //    while (true) {
+    //        //        for (ID j = 0; j < input.nodes_size(); ++j) {
+    //        //            if (i == j) { continue; }
+    //        //            if (visited[j] || !presetX.xEdge[v][t][i][j]) { continue; }
+    //        //            if (i == 0) { oss << i << ","; }
+    //        //            i = j;
+    //        //            oss << i << ",";
+    //        //            break;
+    //        //        }
+    //        //        visited[i] = true;
+    //        //        if (i == 0) { oss << endl; break; }
+    //        //    }
+    //        //}
 
-            for (ID u = 0; u < input.nodes_size(); ++u) {
-                if (visited[u]) { continue; }
-                visited[u] = true;
-                i = u;
-                if (presetX.xQuantity[v][t][u] < IrpModelSolver::DefaultDoubleGap) { continue; }
-                while (true) {
-                    for (ID j = 0; j < input.nodes_size(); ++j) {
-                        if (i == j) { continue; }
-                        if (!presetX.xEdge[v][t][i][j]) { continue; }
-                        if (i == u) { oss << u << ","; }
-                        i = j;
-                        visited[i] = true;
-                        oss << i << ",";
-                        break;
-                    }
-                    if (i == u) { oss << endl; break; }
+    //        //for (ID u = 0; u < input.nodes_size(); ++u) {
+    //        //    if (visited[u]) { continue; }
+    //        //    visited[u] = true;
+    //        //    i = u;
+    //        //    if (presetX.xQuantity[v][t][u] < IrpModelSolver::DefaultDoubleGap) { continue; }
+    //        //    while (true) {
+    //        //        for (ID j = 0; j < input.nodes_size(); ++j) {
+    //        //            if (i == j) { continue; }
+    //        //            if (!presetX.xEdge[v][t][i][j]) { continue; }
+    //        //            if (i == u) { oss << u << ","; }
+    //        //            i = j;
+    //        //            visited[i] = true;
+    //        //            oss << i << ",";
+    //        //            break;
+    //        //        }
+    //        //        if (i == u) { oss << endl; break; }
+    //        //    }
+    //        //}
+    //        //oss << endl;
+    //    }
+    //}
+
+
+    for (ID v = 0; v < input.vehicles_size(); ++v) {
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            for (ID i = 0; i < input.nodes_size(); ++i) {
+                if (presetX.xQuantity[v][t][i] < IrpModelSolver::DefaultDoubleGap) {
+                    oss << 0 << ",";
+                } else {
+                    oss << 1 << ",";
                 }
             }
             oss << endl;

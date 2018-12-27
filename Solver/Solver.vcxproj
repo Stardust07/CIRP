@@ -171,9 +171,12 @@
   <ItemGroup>
     <ClInclude Include="..\Lib\lkh\LKH3Lib\Arr.h" />
     <ClInclude Include="..\Lib\lkh\LKH3Lib\Cache.h" />
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\CachedTspSolver.h" />
     <ClInclude Include="..\Lib\lkh\LKH3Lib\Graph.h" />
     <ClInclude Include="..\Lib\lkh\LKH3Lib\Input.h" />
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\LkhInput.h" />
     <ClInclude Include="..\Lib\lkh\LKH3Lib\lkhSolver.h" />
+    <ClInclude Include="..\Lib\lkh\LKH3Lib\TspCache.h" />
     <ClInclude Include="..\Lib\lkh\LKH3\BIT.h" />
     <ClInclude Include="..\Lib\lkh\LKH3\Delaunay.h" />
     <ClInclude Include="..\Lib\lkh\LKH3\GainType.h" />

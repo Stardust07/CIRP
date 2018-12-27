@@ -21,6 +21,9 @@ struct Graph {
     using DefaultCapacityType = int;
     using DefaultCoordType = int;
 
+    template<typename T>
+    using List = std::vector<T>;
+
 
     // graph elements.
     struct AdjNode { // adjacent node.
@@ -37,6 +40,9 @@ struct Graph {
         WeightedAdjNode(const AdjNode &adjNode, Weight edgeWeight) : AdjNode(adjNode), weight(edgeWeight) {}
 
         Weight weight;
+
+    protected: // constructors for virtual inheritance only.
+        WeightedAdjNode(Weight edgeWeight) : weight(edgeWeight) {}
     };
 
     template<typename Capacity = DefaultCapacityType>
@@ -46,15 +52,18 @@ struct Graph {
         CapacitatedAdjNode(const AdjNode &adjNode, Capacity edgeCapacity) : AdjNode(adjNode), capacity(edgeCapacity) {}
 
         Capacity capacity;
+
+    protected: // constructors for virtual inheritance only.
+        CapacitatedAdjNode(Capacity edgeCapacity) : capacity(edgeCapacity) {}
     };
 
     template<typename Weight = DefaultWeightType, typename Capacity = DefaultCapacityType>
     struct WeightedCapacitatedAdjNode : public virtual WeightedAdjNode<Weight>, public virtual CapacitatedAdjNode<Capacity> {
-        //WeightedCapacitatedAdjNode() {}
-        //WeightedCapacitatedAdjNode(ID dstNodeId, Weight edgeWeight, Capacity edgeCapacity)
-        //    : AdjNode(dstNodeId), weight(edgeWeight), capacity(edgeCapacity) {}
-        //WeightedCapacitatedAdjNode(const AdjNode &adjNode, Weight edgeWeight, Capacity edgeCapacity)
-        //    : AdjNode(adjNode), weight(edgeWeight), capacity(edgeCapacity) {}
+        WeightedCapacitatedAdjNode() {}
+        WeightedCapacitatedAdjNode(ID dstNodeId, Weight edgeWeight, Capacity edgeCapacity)
+            : WeightedAdjNode<Weight>(dstNodeId, edgeWeight), CapacitatedAdjNode<Capacity>(edgeCapacity) {}
+        WeightedCapacitatedAdjNode(const AdjNode &adjNode, Weight edgeWeight, Capacity edgeCapacity)
+            : WeightedAdjNode<Weight>(adjNode, edgeWeight), CapacitatedAdjNode<Capacity>(edgeCapacity) {}
     };
 
 
@@ -73,6 +82,9 @@ struct Graph {
         WeightedEdge(const Edge &edge, Weight edgeWeight) : Edge(edge), weight(edgeWeight) {}
 
         Weight weight;
+
+    protected: // constructors for virtual inheritance only.
+        WeightedEdge(Weight edgeWeight) : weight(edgeWeight) {}
     };
 
     template<typename Capacity = DefaultCapacityType>
@@ -82,15 +94,18 @@ struct Graph {
         CapacitatedEdge(const Edge &edge, Capacity edgeCapacity) : Edge(edge), capacity(edgeCapacity) {}
 
         Capacity capacity;
+
+    protected: // constructors for virtual inheritance only.
+        CapacitatedEdge(Capacity edgeCapacity) : capacity(edgeCapacity) {}
     };
 
     template<typename Weight = DefaultWeightType, typename Capacity = DefaultCapacityType>
     struct WeightedCapacitatedEdge : public virtual WeightedEdge<Weight>, public virtual CapacitatedEdge<Capacity> {
-        //WeightedCapacitatedEdge() {}
-        //WeightedCapacitatedEdge(ID srcNodeId, ID dstNodeId, Weight edgeWeight, Capacity edgeCapacity)
-        //    : Edge(srcNodeId, dstNodeId), weight(edgeWeight), capacity(edgeCapacity) {}
-        //WeightedCapacitatedEdge(const Edge &edge, Weight edgeWeight, Capacity edgeCapacity)
-        //    : Edge(edge), weight(edgeWeight), capacity(edgeCapacity) {}
+        WeightedCapacitatedEdge() {}
+        WeightedCapacitatedEdge(ID srcNodeId, ID dstNodeId, Weight edgeWeight, Capacity edgeCapacity)
+            : WeightedEdge<Weight>(srcNodeId, dstNodeId, edgeWeight), CapacitatedEdge<Capacity>(edgeCapacity) {}
+        WeightedCapacitatedEdge(const Edge &edge, Weight edgeWeight, Capacity edgeCapacity)
+            : WeightedEdge<Weight>(edge, edgeWeight), CapacitatedEdge<Capacity>(edgeCapacity) {}
     };
 
 
