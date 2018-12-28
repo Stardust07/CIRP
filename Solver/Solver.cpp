@@ -341,30 +341,17 @@ bool Solver::solveWithTspRelaxed(Solution & sln, bool findFeasibleFirst) {
     double routingObj = 0;
 
     // initilize routing in each period as tsp.
-    for (int v = 0; v < input.vehicles_size(); ++v) {
-        for (int t = 0; t < input.periodnum(); ++t) {
-            for (int i = 0; i < input.nodes_size(); ++i) {
-                for (int j = 0; j < input.nodes_size(); ++j) {
-                    presetX.xEdge[v][t][i][j] = false;
-                }
-            }
-            cout << "\nSolving period " << t;
-            if (!generateRoutingWithLkh(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], modelSolver.input)) {
-                cout << "Period " << t << " has not solved." << endl;
-                return false;
-            }
-        }
-    }
-    //recordSolution(originInput, presetX);
+    if (!solveVrp(presetX, routingObj, elapsedSeconds, modelSolver.input.nodes)) { return false; }
     cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
 
-    // record path
+    // recordSolution(originInput, presetX);
     // writePathToCsv(presetX);
     
     sln.totalCost = holdingObj + routingObj;
     retrieveOutputFromModel(sln, presetX);
     return true;
 
+    // TODO[qym][9]: to delete 
     // count visited times.
     List<int> nodeVisitedTimes(input.nodes_size(), 0);
     List<int> periodVisitedTimes(input.periodnum(), 0);
@@ -755,21 +742,7 @@ bool Solver::solveWithTspRelaxed(Solution & sln, bool findFeasibleFirst) {
     }
 
     routingObj = 0;
-    // initilize routing in each period as tsp.
-    for (int v = 0; v < input.vehicles_size(); ++v) {
-        for (int t = 0; t < input.periodnum(); ++t) {
-            for (int i = 0; i < input.nodes_size(); ++i) {
-                for (int j = 0; j < input.nodes_size(); ++j) {
-                    presetX.xEdge[v][t][i][j] = false;
-                }
-            }
-            cout << "\nSolving period " << t;
-            if (!generateRouting(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], modelSolver.input)) {
-                cout << "Period " << t << " has not solved." << endl;
-                return false;
-            }
-        }
-    }
+    if (!solveVrp(presetX, routingObj, elapsedSeconds, modelSolver.input.nodes)) { return false; }
     // record solution.
     sln.totalCost = bestHolding + routingObj;
     retrieveOutputFromModel(sln, modelSolver.presetX);
@@ -810,6 +783,7 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
             }
         }
     }
+    // local search: add node first, then delete node
     struct AddMove {
         ID vehicle;
         ID period;
@@ -882,20 +856,7 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
             presetX.xQuantity = inventorySolver.presetX.xQuantity;
             holdingObj = inventorySolver.getHoldingCostInPeriod(0, input.periodnum());
             routingObj = 0;
-            for (int v = 0; v < input.vehicles_size(); ++v) {
-                for (int t = 0; t < input.periodnum(); ++t) {
-                    for (int i = 0; i < input.nodes_size(); ++i) {
-                        for (int j = 0; j < input.nodes_size(); ++j) {
-                            presetX.xEdge[v][t][i][j] = false;
-                        }
-                    }
-                    cout << "\nSolving period " << t;
-                    if (!generateRoutingWithLkh(presetX.xEdge[v][t], routingObj, elapsedSeconds, presetX.xQuantity[v][t], irpSolver.input)) {
-                        cout << "Period " << t << " has not solved." << endl;
-                        return false;
-                    }
-                }
-            }
+            if (!solveVrp(presetX, routingObj, elapsedSeconds, irpSolver.input.nodes)) { return false; }
             cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
             sln.totalCost = (holdingObj + routingObj);
         } else {
@@ -973,11 +934,15 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithIterativeModel(Solution & sln, bool findFeasibleFirst) {
+    const String TspCacheDir("lkh/TspCache/");
+    System::makeSureDirExist(TspCacheDir);
+
     IrpModelSolver irpSolver;
     if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
 
     convertToModelInput(irpSolver.input, input);
     irpSolver.routingCost = aux.routingCost;
+    irpSolver.setTspCachePath(TspCacheDir + env.friendlyInstName() + ".csv");
     if (!irpSolver.solveIteratively()) { return false; }
 
     IrpModelSolver::PresetX &presetX(irpSolver.presetX);
@@ -1003,7 +968,7 @@ bool Solver::solveWithIterativeModel(Solution & sln, bool findFeasibleFirst) {
         }
     }
     // remove nodes.
-    while (true) {
+    while (false) {
         double decreasedCost = 0;
         ID deletePeriod = -1, deleteVehicle = -1;
         ID deleteNode = -1, preNode = -1, postNode = -1;
@@ -1477,35 +1442,57 @@ bool Solver::getFixedPeriods(int periodNum, List<bool>& isPeriodFixed, int iter,
     return true;
 }
 
-bool Solver::generateRouting(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const IrpModelSolver::Input inp) {
+bool Solver::solveVrp(IrpModelSolver::PresetX &presetX, double &obj, double &seconds, const List<IrpModelSolver::Node> &nodes) {
+    obj = 0;
+    for (int v = 0; v < input.vehicles_size(); ++v) {
+        for (int t = 0; t < input.periodnum(); ++t) {
+            for (int i = 0; i < input.nodes_size(); ++i) {
+                for (int j = 0; j < input.nodes_size(); ++j) {
+                    presetX.xEdge[v][t][i][j] = false;
+                }
+            }
+            cout << "\nSolving period " << t;
+            double singleObj, singleSeconds;
+            if (!generateRoutingWithLkh(presetX.xEdge[v][t], singleObj, singleSeconds, presetX.xQuantity[v][t], nodes)) {
+                cout << "Period " << t << " has not solved." << endl;
+                return false;
+            }
+            obj += singleObj;
+            seconds += singleSeconds;
+        }
+    }
+    return true;
+}
+
+bool Solver::generateRouting(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const List<IrpModelSolver::Node> &nodes) {
     const int DefaultTimeLimit = 600;
 
     // if no delivery quantity in the period, return true.
     if (quantity.empty() || (quantity[0] < IrpModelSolver::DefaultDoubleGap)) {
-        std::cout << " with 0 nodes.\n\n";
+        cout << " with 0 nodes.\n\n";
         return true;
     }
 
-    List<int> nodeIndices;
+    List<ID> nodeIndices;
     IrpModelSolver::Input routeInput;
     routeInput.periodNum = 1;
-    routeInput.vehicleNum = inp.vehicleNum;
-    routeInput.vehicleCapacity = inp.vehicleCapacity;
-    routeInput.nodes.push_back(inp.nodes[0]);
+    routeInput.vehicleNum = 1;
+    routeInput.vehicleCapacity = 0;
+    routeInput.nodes.push_back(nodes[0]);
     // add supplier.
     nodeIndices.push_back(0);
     edges.resize(input.nodes_size());
-    edges[0].resize(inp.nodeNum, false);
-    for (ID i = 1; i < inp.nodeNum; ++i) {
-        edges[i].resize(inp.nodeNum, false);
+    edges[0].resize(nodes.size(), false);
+    for (ID i = 1; i < nodes.size(); ++i) {
+        edges[i].resize(nodes.size(), false);
         if (quantity[i] > IrpModelSolver::DefaultDoubleGap) {
-            routeInput.nodes.push_back(inp.nodes[i]);
+            routeInput.nodes.push_back(nodes[i]);
             nodeIndices.push_back(i);
         }
     }
     routeInput.nodeNum = routeInput.nodes.size();
-    // TODO[qym][5]: solve tsp with lkh3 instead. 
-    std::cout << " with " << routeInput.nodeNum << " nodes.\n\n";
+    cout << " with " << routeInput.nodeNum << " nodes.\n\n";
+
     IrpModelSolver routeSolver(routeInput, false);
     routeSolver.setTimeLimitInSecond(DefaultTimeLimit);
     // set routing cost for route solver.
@@ -1519,8 +1506,8 @@ bool Solver::generateRouting(List<List<bool>>& edges, double & obj, double & sec
     }
 
     if (!routeSolver.solveTspModel()) { return false; }
-    obj += routeSolver.getMpSolverObjValue();
-    seconds += routeSolver.getDurationInSecond();
+    obj = routeSolver.getMpSolverObjValue();
+    seconds = routeSolver.getDurationInSecond();
 
     for (int i = 0; i < routeInput.nodeNum; ++i) {
         for (int j = 0; j < routeInput.nodeNum; ++j) {
@@ -1531,48 +1518,46 @@ bool Solver::generateRouting(List<List<bool>>& edges, double & obj, double & sec
     return true;
 }
 
-bool Solver::generateRoutingWithLkh(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const IrpModelSolver::Input inp) {
+bool Solver::generateRoutingWithLkh(List<List<bool>>& edges, double & obj, double & seconds, const List<double>& quantity, const List<IrpModelSolver::Node> &nodes) {
+    seconds = 0;
     // if no delivery quantity in the period, return true.
     if (quantity.empty() || (quantity[0] < IrpModelSolver::DefaultDoubleGap)) {
-        std::cout << " with 0 nodes.\n\n";
+        cout << " with 0 nodes.\n\n";
         return true;
     }
 
-    lkh::Tour tour;
     List<ID> visitedNodes;
-    edges.resize(inp.nodeNum);
-    for (ID i = 0; i < inp.nodeNum; ++i) {
-        edges[i].resize(inp.nodeNum, false);
+    List<bool> containNode(input.nodes_size(), false);
+    CachedTspSolver::CoordList2D coords;
+    edges.resize(nodes.size());
+    for (ID i = 0; i < nodes.size(); ++i) {
+        edges[i].resize(nodes.size(), false);
         if (quantity[i] > IrpModelSolver::DefaultDoubleGap) {
             visitedNodes.push_back(i);
+            containNode[i] = true;
+            coords.push_back({ nodes[i].xCoord, nodes[i].yCoord });
         }
     }
-    if (visitedNodes.size() < 2) { return true; }
-    std::cout << " with " << visitedNodes.size() << " nodes.\n\n";
-
-    if (visitedNodes.size() >= 3) {
-        lkh::CoordList2D coordList(visitedNodes.size());
-        for (int i = 0; i < visitedNodes.size(); ++i) {
-            coordList[i].x = inp.nodes[visitedNodes[i]].xCoord;
-            coordList[i].y = inp.nodes[visitedNodes[i]].yCoord;
-        }
-        if (lkh::solveTsp(tour, coordList)) {
-            //cout << "Failed to optimize period " << t << endl;
-            //return false;
-        }
-        obj += tour.distance;
-
-        // adjust node id on tour.
-        ID preNode = 0;
-        for (int i = 1; i < tour.nodes.size(); ++i) {
-            edges[preNode][visitedNodes[tour.nodes[i]]] = true;
-            preNode = visitedNodes[tour.nodes[i]];
-        }
-        edges[preNode][0] = true;
-    } else {
+    cout << " with " << visitedNodes.size() << " nodes.\n\n";
+    if (visitedNodes.size() < 2) {
+        return true;
+    } else if (visitedNodes.size() == 2) {
         edges[visitedNodes[0]][visitedNodes[1]] = true;
         edges[visitedNodes[1]][visitedNodes[0]] = true;
-        obj += aux.routingCost[visitedNodes[0]][visitedNodes[1]] + aux.routingCost[visitedNodes[1]][visitedNodes[0]];
+        obj = (aux.routingCost[visitedNodes[0]][visitedNodes[1]] + aux.routingCost[visitedNodes[1]][visitedNodes[0]]);
+    } else {
+        CachedTspSolver::Tour tour;
+        CachedTspSolver tspSolver(input.nodes_size(), "lkh/TspCache/" + env.friendlyInstName() + ".csv");
+        if (!tspSolver.solve(tour, containNode, coords, [&](ID n) { return visitedNodes[n]; })) { return false; }
+        obj = tour.distance;
+
+        // convert solution of lkh to edges.
+        ID preNode = 0;
+        for (ID i = 1; i < tour.nodes.size(); ++i) {
+            edges[preNode][tour.nodes[i]] = true;
+            preNode = tour.nodes[i];
+        }
+        edges[preNode][0] = true;
     }
 
     return true;

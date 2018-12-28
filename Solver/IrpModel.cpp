@@ -932,10 +932,7 @@ double IrpModelSolver::getHoldingCost(const List2D<List<MpSolver::DecisionVar>> 
 
 double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<bool(ID, ID, ID)> isVisited) {
     // add tsp cache
-    //const String TspCacheDir("TspCache/");
-    //System::makeSureDirExist(TspCacheDir);
-    //CachedTspSolver tspSolver(nodeNum, TspCacheDir + env.friendlyInstName() + ".csv");
-
+    CachedTspSolver tspSolver(input.nodeNum, aux.tspCacheFilePath);
 
     double routingObj = 0;
     tours.resize(input.vehicleNum);
@@ -943,37 +940,36 @@ double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<b
         tours[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
             List<ID> visitedNodes;
+            List<bool> containNode(input.nodeNum, false);
+            CachedTspSolver::CoordList2D coords;
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (isVisited(v, t, i)) {
                     visitedNodes.push_back(i);
+                    containNode[i] = true;
+                    coords.push_back({ input.nodes[i].xCoord, input.nodes[i].yCoord });
                 }
             }
             if (visitedNodes.size() < 2) { continue; }
-
-            lkh::Tour tour;
             if (visitedNodes.size() >= 3) {
-                lkh::CoordList2D coordList(visitedNodes.size()); 
-                for (int i = 0; i < visitedNodes.size(); ++i) {
-                    coordList[i].x = input.nodes[visitedNodes[i]].xCoord;
-                    coordList[i].y = input.nodes[visitedNodes[i]].yCoord;
-                }
-                if (lkh::solveTsp(tour, coordList)) {
+                CachedTspSolver::Tour tour;
+                if (!tspSolver.solve(tour, containNode, coords, [&](ID n) { return visitedNodes[n]; })) { return false; }
+                //if (lkh::solveTsp(tour, coordList)) {
                     //cout << "Failed to optimize period " << t << endl;
                     //return -1;
-                }
-                routingObj += tour.distance;
-
-                // adjust node id on tour.
+                //}
+                tours[v][t].nodes = tour.nodes;
                 tours[v][t].distance = tour.distance;
-                for (int i = 0; i < tour.nodes.size(); ++i) {
-                    tours[v][t].nodes.push_back(visitedNodes[tour.nodes[i]]);
-                }
+                // adjust node id on tour.
+                //for (int i = 0; i < tour.nodes.size(); ++i) {
+                    //tours[v][t].nodes.push_back(visitedNodes[tour.nodes[i]]);
+                //}
             } else {
                 // 2 nodes.
                 tours[v][t].nodes = visitedNodes;
                 tours[v][t].distance = routingCost[visitedNodes[0]][visitedNodes[1]]+ routingCost[visitedNodes[1]][visitedNodes[0]];
             }
             //cout << "Period " << t << "\t" << tours[v][t].nodes.size() << "\t" << tours[v][t].distance << endl;
+            routingObj += tours[v][t].distance;
         }
     }
     return routingObj;

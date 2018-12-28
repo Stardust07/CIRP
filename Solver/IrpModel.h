@@ -109,7 +109,7 @@ public:
     double getTotalCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(totalCostInPeriod(start, size, addInitial)); }
     double getRestQuantityUntilPeriod(ID node, int size) { return mpSolver.getValue(restQuantityUntilPeriod(node, size)); }
     int getIntQuantity(ID v, ID t, ID n) { return lround(mpSolver.getValue(x.xQuantity[v][t][n])); }
-    double solveVrpWithLkh(List2D<lkh::Tour> &tours, std::function<bool(ID, ID, ID)> isVisited);
+
 
     void enablePresetSolution() {
         if (cfg.usePresetSolution) { return; }
@@ -132,6 +132,9 @@ public:
     void relaxTspSubtourConstraint() {
         cfg.allowSubtour = true;
         cfg.useBenchmark = false;
+    }
+    void setTspCachePath(const String &path) {
+        aux.tspCacheFilePath = path;
     }
     // set mpsolver parameters.
     void setFindFeasiblePreference() { mpSolver.setFocus(1); }
@@ -177,7 +180,6 @@ protected:
         setOutput(cfg.enableMpOutput);
 
         // set auxilury data
-        aux.tspCacheFilePath = "";
         initSkipNodes();
         initRoutingCost();
     }
@@ -241,6 +243,8 @@ protected:
             }
         }
     }
+    double solveVrpWithLkh(List2D<lkh::Tour> &tours, std::function<bool(ID, ID, ID)> isVisited);
+
     // retrieve quantity only and reset edge to false.
     void retrieveDeliveryQuantity(PresetX &presetX, std::function<double(ID v, ID t, ID i)> getQuantity);
     #pragma endregion Method

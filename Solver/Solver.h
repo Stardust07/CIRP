@@ -106,7 +106,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::Test; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::IterativeModel; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 
@@ -218,14 +218,15 @@ protected:
     void retrieveOutputFromModel(Problem::Output &sln, const IrpModelSolver::PresetX &presetX);
     void solutionToPresetX(IrpModelSolver::PresetX &presetX, const Problem::Output &sln);
     void writePathToCsv(const IrpModelSolver::PresetX &presetX);
+    void recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX);
 
     bool getFixedPeriods(int periodNum, List<bool> &isPeriodFixed, int iter, List<int> &tabuTable, int totalMoveCount);
-    // solve tsp model.
-    bool generateRouting(List<List<bool>> &edges, double &obj, double &seconds, 
-        const List<double> &quantity, const IrpModelSolver::Input inp);
+    // solve tsp for delivered nodes.
+    bool solveVrp(IrpModelSolver::PresetX &presetX, double &obj, double &seconds, const List<IrpModelSolver::Node> &nodes);
+    bool generateRouting(List<List<bool>> &edges, double &obj, double &seconds,
+        const List<double> &quantity, const List<IrpModelSolver::Node> &nodes);
     bool generateRoutingWithLkh(List<List<bool>> &edges, double &obj, double &seconds,
-        const List<double> &quantity, const IrpModelSolver::Input inp);
-    void recordSolution(const IrpModelSolver::Input input, const IrpModelSolver::PresetX presetX);
+        const List<double> &quantity, const List<IrpModelSolver::Node> &nodes);
 
     template<typename T>
     static T makeSureInRange(T val, T minVal, T maxVal) {
