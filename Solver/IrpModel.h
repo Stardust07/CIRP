@@ -24,8 +24,19 @@ class IrpModelSolver {
     #pragma region Type
 public:
     using MpSolver = MpSolverGurobi;
+    using VariableType = MpSolver::VariableType;
+    using DecisionVar = MpSolver::DecisionVar;
+    using LinearExpr = MpSolver::LinearExpr;
+    using OptimaOrientation = MpSolver::OptimaOrientation;
     template<typename T>
     using List2D = List<List<T>>;
+    template<typename T>
+    using List3D = List2D<List<T>>;
+    template<typename T>
+    using GetVarValue = std::function<T(const DecisionVar&)>;
+    template <typename T>
+    using GetValueById = std::function<T(ID, ID, ID)>;
+    using MakeConstraint = std::function<void(const MpSolver::LinearRange&)>;
 
     struct Node {
         double xCoord;
@@ -49,11 +60,10 @@ public:
     };
 
     struct PresetX {
-        List<bool> isPeriodFixed;        // isPeriodFixed[t] = true shows the routing of period t is fixed.
-        List2D<List2D<bool>> xEdge;      // xEdge[v][t][i][j] = true shows edge (i,j) is on the path in period t.
-        List2D<List<double>> xQuantity;  // xQuantity[v][t][i] denotes the delivery quantity of node i in period t.
-        List2D<List<double>> xSequence;  // xSequence[v][t][i] denotes the visit order of node i in period t.
-        List2D<List<bool>> xVisited;     // xVisited[v][t][i] = true shows node i is visited in period t.
+        List2D<List2D<bool>> xEdge;// xEdge[v][t][i][j] = true shows edge (i,j) is on the path in period t.
+        List3D<double> xQuantity;  // xQuantity[v][t][i] denotes the delivery quantity of node i in period t.
+        List3D<double> xSequence;  // xSequence[v][t][i] denotes the visit order of node i in period t.
+        List3D<bool> xVisited;     // xVisited[v][t][i] = true shows node i is visited in period t.
     };
 
     struct Objective {
@@ -67,7 +77,7 @@ public:
     #pragma region Constant
 public:
     static constexpr double Infinity = MpSolver::Infinity;
-    static constexpr auto DefaultObjectiveOptimaOrientation = MpSolver::OptimaOrientation::Minimize;
+    static constexpr auto DefaultObjectiveOptimaOrientation = OptimaOrientation::Minimize;
     static constexpr int MillisecondsPerSecond = 1000;
     static constexpr int DefaultTimeLimitSecond = 600;
     static constexpr int DefaultMaxThreadNum = 4;
@@ -77,8 +87,8 @@ public:
 
     #pragma region Constructor
 public:
-    IrpModelSolver() : callback(*this), tspCallback(*this) {}
-    IrpModelSolver(const Input &inp, bool useBenchmark = true) : input(inp), callback(*this), tspCallback(*this) {
+    IrpModelSolver() {}
+    IrpModelSolver(const Input &inp, bool useBenchmark = true) : input(inp) {
         cfg.useBenchmark = useBenchmark;
     }
     #pragma endregion Constructor
@@ -92,50 +102,52 @@ public:
     bool optimizeInventory();
     void retrieveSolution();
 
-    static void saveSolution(const Input &input, const PresetX &presetX, const std::string &path);
+    static void saveSolution(const Input &input, const PresetX &presetX, const String &path);
 
     // cost expressions
-    MpSolver::LinearExpr totalCostInPeriod(int start, int size, bool addInitial = true);
-    MpSolver::LinearExpr routingCostInPeriod(int start, int size);
-    MpSolver::LinearExpr holdingCostInPeriod(int start, int size, bool addInitial = true);
-    //MpSolver::LinearExpr increasedHoldingCost(ID t);
-    MpSolver::LinearExpr restQuantityUntilPeriod(ID node, int size);
-    MpSolver::LinearExpr totalShortageQuantity();
+    LinearExpr totalCostInPeriod(int start, int size, bool addInitial = true);
+    LinearExpr routingCostInPeriod(int start, int size);
+    LinearExpr holdingCostInPeriod(int start, int size, bool addInitial = true);
+    //LinearExpr increasedHoldingCost(ID t);
+    LinearExpr restQuantityUntilPeriod(ID node, int size);
+    LinearExpr totalShortageQuantity();
 
     double getMpSolverObjValue() { return mpSolver.getObjectiveValue(); }
     double getDurationInSecond() { return elapsedSeconds; }
-    double getHoldingCost(const List2D<List<MpSolver::DecisionVar>> &quantity, std::function<double(MpSolver::DecisionVar)> getValue);
+    double getHoldingCost(const List3D<DecisionVar> &quantity, GetVarValue<double> getValue);
     double getHoldingCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(holdingCostInPeriod(start, size, addInitial)); }
     double getTotalCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(totalCostInPeriod(start, size, addInitial)); }
     double getRestQuantityUntilPeriod(ID node, int size) { return mpSolver.getValue(restQuantityUntilPeriod(node, size)); }
     int getIntQuantity(ID v, ID t, ID n) { return lround(mpSolver.getValue(x.xQuantity[v][t][n])); }
 
-
     void enablePresetSolution() {
-        if (cfg.usePresetSolution) { return; }
-        //cfg.useBenchmark = false;
-        cfg.usePresetSolution = true;
-        cfg.optimizeTotalCost = true;
-        presetX.isPeriodFixed.resize(input.periodNum, false);
+        if (cfg.isPresetEnabled()) { return; }
+        cfg.presetPolicy = Configuration::PresetPolicy::OptimizeHoldingCostOfAll;
+        aux.isPeriodFixed.resize(input.periodNum, false);
     }
-    void fixPeriod(ID t) {
-        if (!cfg.usePresetSolution) { enablePresetSolution(); };
-        if ((t < 0) || (presetX.isPeriodFixed.size() <= t)) { return; }
-        presetX.isPeriodFixed[t] = true;
+    void setPeriodFixed(ID t) {
+        if (!cfg.isPresetEnabled()) { enablePresetSolution(); };
+        if ((t < 0) || (aux.isPeriodFixed.size() <= t)) { return; }
+        aux.isPeriodFixed[t] = true;
     }
-    void setPresetQuantity(ID v, ID t, List<double> xQuantity) {
+    void setPresetQuantity(ID v, ID t, List<double> quantity) {
         if ((v < 0) || (t < 0)) { return; }
         if ((presetX.xQuantity.size() <= v) || (presetX.xQuantity[v].size() <= t)) { return; }
-        presetX.xQuantity[v][t] = xQuantity;
+        presetX.xQuantity[v][t] = quantity;
     }
-    void enableRelaxShortage() { cfg.allowShortage = true; }
-    void relaxTspSubtourConstraint() {
-        cfg.allowSubtour = true;
+    List<bool>& periodFixedData() { return aux.isPeriodFixed; }
+
+    void relaxShortageConstraint() { 
+        cfg.relaxationPolicy = Configuration::RelaxationPolicy::RelaxShortage; 
         cfg.useBenchmark = false;
     }
-    void setTspCachePath(const String &path) {
-        aux.tspCacheFilePath = path;
+    void relaxTspSubtourConstraint() {
+        cfg.subtourPolicy = Configuration::SubtourPolicy::AllowSubtours;
+        cfg.relaxationPolicy = Configuration::RelaxationPolicy::RelaxSubtour;
+        cfg.useBenchmark = false;
     }
+    void setTspCachePath(const String &path) { aux.tspCacheFilePath = path; }
+
     // set mpsolver parameters.
     void setFindFeasiblePreference() { mpSolver.setFocus(1); }
     void setTimeLimitInSecond(int second) { mpSolver.setTimeLimitInSecond(second); }
@@ -157,14 +169,14 @@ protected:
         //double k = 4;
         //mpSolver.setObjective(
         //    (routingCostInPeriod(0, input.periodNum) + k * holdingCostInPeriod(0, input.nodeNum)),
-        //    MpSolver::OptimaOrientation::Minimize);
-        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum), MpSolver::OptimaOrientation::Minimize);
+        //    OptimaOrientation::Minimize);
+        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum), OptimaOrientation::Minimize);
     }
     void setShortageQuantityObjective() {
-        mpSolver.setObjective(totalShortageQuantity(), MpSolver::OptimaOrientation::Minimize);
+        mpSolver.setObjective(totalShortageQuantity(), OptimaOrientation::Minimize);
     }
 
-    void setSolutionFoundCallback() { mpSolver.setCallback(&callback); }
+    // initialization
     void setInitSolution();
     void initSolver() {
         elapsedSeconds = 0;
@@ -191,10 +203,10 @@ protected:
             return;
         }
     }
-
     void initSkipNodes(double prob = 0.75) {
         aux.skipNode = List2D<bool>(input.periodNum, List<bool>(input.nodeNum, false));
-        return;
+        if (!cfg.skipNodes) { return; }
+
         if (presetX.xQuantity.empty()) { return; }
 
         auto shouldSkipUnvisitedNode = [&](ID t, ID n, double prob) {
@@ -206,7 +218,7 @@ protected:
         };
         
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             ID skipCount = 0;
             std::cout << t << ": ";
             for (ID n = 1; n < input.nodeNum; ++n) {
@@ -229,8 +241,9 @@ protected:
     void addNodeDegreeConstraints();
     void setRoutingCostObjective();
 
-    bool eliminateSubtour(std::function<bool(const MpSolver::DecisionVar&)> isTrue, std::function<void(const MpSolver::LinearRange&)> addLazy);
-    void convertTourToEdges(PresetX &presetX, const List2D<lkh::Tour> &tours) {
+    // auxilury methods.
+    bool eliminateSubtour(GetVarValue<bool> isTrue, MakeConstraint addLazy);
+    void convertTourToEdges(PresetX &presetX, const List2D<CachedTspSolver::Tour> &tours) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
             for (ID t = 0; t < input.periodNum; ++t) {
                 // convert result of lkh to presetx
@@ -243,10 +256,12 @@ protected:
             }
         }
     }
-    double solveVrpWithLkh(List2D<lkh::Tour> &tours, std::function<bool(ID, ID, ID)> isVisited);
+    double solveVrpWithLkh(List2D<CachedTspSolver::Tour> &tours, GetValueById<bool> isVisited);
 
     // retrieve quantity only and reset edge to false.
-    void retrieveDeliveryQuantity(PresetX &presetX, std::function<double(ID v, ID t, ID i)> getQuantity);
+    void retrieveDeliveryQuantity(PresetX &presetX, GetValueById<double> getQuantity);
+    // TODO[qym][0]: rename 
+    void banCurSln(GetValueById<bool> isVisited, MakeConstraint addLazy);
     #pragma endregion Method
 
     #pragma region Field
@@ -264,29 +279,54 @@ protected:
     MpSolver mpSolver;
 
     struct Configuration {
-        bool useLazyConstraints;
-        bool useBenchmark;
-        bool usePresetSolution;
-        bool allowShortage;
-        bool allowSubtour;
-        bool optimizeTotalCost;
-        bool forbidAllSubtours;
+        enum SubtourPolicy {
+            AllowSubtours = 0,
+            BanSubtours = 1,
+            SequenceModel = 1,
+            EliminateSubtours = 2,
+            EliminateAllSubtours = 2,
+            EliminateFirstSubtour = 3,
+            EliminateLongestSubtour = 4
+        };
+        enum RelaxationPolicy {
+            NoRelaxation, RelaxSubtour, RelaxShortage
+        };
+        enum PresetPolicy {
+            NoPresetSolution= 0, 
+            WithPresetSolution = 1, 
+            OptimizeHoldingCostOfAll = 1, 
+            OptimizeHoldingCostOfPart = 2
+        };
+        
+        bool useBenchmark; // abort optimization in advance
+        bool skipNodes;
+        SubtourPolicy subtourPolicy;
+        RelaxationPolicy relaxationPolicy;
+        PresetPolicy presetPolicy;
         bool enableMpOutput;
 
-        Configuration() :useLazyConstraints(true), useBenchmark(true), usePresetSolution(false), allowShortage(false),
-            allowSubtour(false), optimizeTotalCost(false), forbidAllSubtours(true), enableMpOutput(true) {}
+        Configuration() :useBenchmark(true), enableMpOutput(true),
+            skipNodes(false), presetPolicy(PresetPolicy::NoPresetSolution),
+            relaxationPolicy(RelaxationPolicy::NoRelaxation), subtourPolicy(SubtourPolicy::EliminateAllSubtours) {}
+
+        bool isEliminationLazy() { return (subtourPolicy >= SubtourPolicy::EliminateSubtours); }
+        bool isSubtoursAllowed() { return (subtourPolicy == SubtourPolicy::AllowSubtours); }
+        bool isShortageRelaxed() { return (relaxationPolicy == RelaxationPolicy::RelaxShortage); }
+        bool isPresetEnabled() { return (presetPolicy >= PresetPolicy::WithPresetSolution); }
+        bool withGlobalOptimization() { return (presetPolicy == PresetPolicy::OptimizeHoldingCostOfAll); }
     } cfg;
 
     struct {
-        List2D<List2D<MpSolver::DecisionVar>> xEdge;
-        List2D<List<MpSolver::DecisionVar>> xQuantity; // delivered quantity
-        List2D<List<MpSolver::DecisionVar>> xSequence; // visited order
-        List<MpSolver::DecisionVar> xMinLevel;         // minimal surplus for nodes
-        List<MpSolver::DecisionVar> xShortage;         // shortage quantity for nodes,always non-negative
-        List2D<List<MpSolver::DecisionVar>> xVisited;
+        List2D<List2D<DecisionVar>> xEdge;
+        List3D<DecisionVar> xQuantity;       // delivered quantity
+        List3D<DecisionVar> xSequence;       // visited order
+        List<DecisionVar> xMinLevel;         // minimal surplus for nodes
+        List<DecisionVar> xShortage;         // shortage quantity for nodes,always non-negative
+        List3D<DecisionVar> xVisited;
     } x;
 
     struct {
+        List<bool> isPeriodFixed;  // isPeriodFixed[t] = true shows the routing of period t is fixed.
         List2D<bool> skipNode;
         String tspCacheFilePath;
     } aux;
@@ -300,7 +340,7 @@ protected:
     protected:
         void callback();
         void printSolutionInfo(); // print routing matrix.
-    } callback;
+    };
 
     class TspSolutionFound : public GRBCallback {
         IrpModelSolver &solver;
@@ -310,19 +350,19 @@ protected:
 
     protected:
         void callback();
-    } tspCallback;
+    };
 
     // for tsp-relaxed model
-    class InfeasibleFound : public GRBCallback {
+    class RelaxedSolutionFound : public GRBCallback {
         IrpModelSolver &solver;
         const IrpModelSolver::Input &input;
 
     public:
-        InfeasibleFound(IrpModelSolver &sol) :solver(sol), input(sol.input) {}
+        RelaxedSolutionFound(IrpModelSolver &sol) :solver(sol), input(sol.input) {}
 
     protected:
         void callback();
-        bool isTrue(MpSolver::DecisionVar var) {
+        bool isTrue(const DecisionVar &var) {
             double x = getSolution(var);
             return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap));
         }

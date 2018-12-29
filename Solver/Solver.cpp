@@ -968,7 +968,7 @@ bool Solver::solveWithIterativeModel(Solution & sln, bool findFeasibleFirst) {
         }
     }
     // remove nodes.
-    while (false) {
+    while (true) {
         double decreasedCost = 0;
         ID deletePeriod = -1, deleteVehicle = -1;
         ID deleteNode = -1, preNode = -1, postNode = -1;
@@ -1042,8 +1042,7 @@ bool Solver::solveWithInventoryRelaxed(Solution & sln, bool findFeasibleFirst) {
     IrpModelSolver initSolver;
     convertToModelInput(initSolver.input, input);
     initSolver.routingCost = aux.routingCost;
-    initSolver.enableRelaxShortage();
-    
+    initSolver.relaxShortageConstraint();   
     if (!initSolver.solve()) { return false; }
 
     // initialize tabu table.
@@ -1079,11 +1078,12 @@ bool Solver::solveWithInventoryRelaxed(Solution & sln, bool findFeasibleFirst) {
 
         IrpModelSolver::saveSolution(initSolver.input, presetX, env.friendlyLocalTime() + "_" + to_string(iter) + "_" + env.logPath);
         IrpModelSolver solver(initSolver.input);
+        auto &isPeriodFixed(solver.periodFixedData());
         solver.routingCost = aux.routingCost;
         solver.presetX = presetX; // setting presetX and enabling preset solution should not reverse the order.
         solver.enablePresetSolution();
         solver.setTimeLimitInSecond(timeLimitPerIteration);
-        if (!getFixedPeriods(input.periodnum(), solver.presetX.isPeriodFixed, iter, tabuTable, moveCount)) { break; }
+        if (!getFixedPeriods(input.periodnum(), isPeriodFixed, iter, tabuTable, moveCount)) { break; }
         if (findFeasibleFirst) { solver.setFindFeasiblePreference(); }
         
         bool feasibleFound = solver.solve();
@@ -1099,7 +1099,7 @@ bool Solver::solveWithInventoryRelaxed(Solution & sln, bool findFeasibleFirst) {
         
         cout << "\nFix: ";
         for (int i = 0; i < input.periodnum(); ++i) {
-            if (!solver.presetX.isPeriodFixed[i]) { continue; }
+            if (!isPeriodFixed[i]) { continue; }
             cout << i << " ";
         }
         cout << "\nBest: " << bestObj << endl;

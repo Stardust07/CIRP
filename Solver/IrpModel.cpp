@@ -23,17 +23,18 @@ bool IrpModelSolver::solve() {
     addLoadDeliveryBalanceConstraint();
     addCustomerLevelConstraint();
     addSupplierLevelConstraint();
-    if (!cfg.useLazyConstraints) {
+    if (!cfg.isEliminationLazy() && !cfg.isSubtoursAllowed()) {
         addSubtourEliminationConstraint();
     }
-    if (cfg.useBenchmark || (cfg.useLazyConstraints && !cfg.allowSubtour)) {
-        setSolutionFoundCallback();
+    if (cfg.useBenchmark || cfg.isEliminationLazy()) {
+        SolutionFound cb(*this);
+        mpSolver.setCallback(&cb);
     }
     
-    if (cfg.usePresetSolution) {
+    if (cfg.isPresetEnabled()) {
         setInitSolution();
     }
-    if (cfg.allowShortage) {
+    if (cfg.isShortageRelaxed()) {
         setShortageQuantityObjective();
         if (!mpSolver.optimize() || mpSolver.getObjectiveValue() > 0) {
             elapsedSeconds = DefaultTimeLimitSecond;
@@ -46,7 +47,7 @@ bool IrpModelSolver::solve() {
             elapsedSeconds = mpSolver.getDurationInSecond();
             return false;
         }
-        elapsedSeconds = (cfg.usePresetSolution || !cfg.useBenchmark) ? mpSolver.getDurationInSecond() : elapsedSeconds;
+        elapsedSeconds = (cfg.isPresetEnabled() || !cfg.useBenchmark) ? mpSolver.getDurationInSecond() : elapsedSeconds;
     }
     retrieveSolution();
 
@@ -59,6 +60,7 @@ bool IrpModelSolver::solveIteratively() {
 
     initSolver();
     relaxTspSubtourConstraint();
+    cfg.subtourPolicy = Configuration::SubtourPolicy::EliminateAllSubtours;
     currentObjective = { 0, 0, INFINITY };
 
     addDecisionVars();
@@ -71,7 +73,7 @@ bool IrpModelSolver::solveIteratively() {
 
     // use lazy constraint
     if(lazy) {
-        InfeasibleFound cb(*this);
+        RelaxedSolutionFound cb(*this);
         mpSolver.setCallback(&cb);
         //mpSolver.makeConstraint(x.xQuantity[0][0][0] <= 0);
         //mpSolver.makeConstraint(x.xQuantity[0][5][0] <= 0);
@@ -80,6 +82,7 @@ bool IrpModelSolver::solveIteratively() {
             return (currentObjective.totalCost < INFINITY);
         }
     } else { // model
+        elapsedSeconds = 0;
         while (elapsedSeconds < DefaultTimeLimitSecond) {
             if (!mpSolver.optimize()) {
                 elapsedSeconds = mpSolver.getDurationInSecond();
@@ -87,14 +90,11 @@ bool IrpModelSolver::solveIteratively() {
             }
             elapsedSeconds += mpSolver.getDurationInSecond();
             // solve tsp with lkh.
-            List2D<lkh::Tour> tours;
+            List2D<CachedTspSolver::Tour> tours;
             double holdingCost = getHoldingCostInPeriod(0, input.periodNum);
             double routingCost =
                 solveVrpWithLkh(tours, [&](ID v, ID t, ID i) { return (mpSolver.getValue(x.xQuantity[v][t][i]) > DefaultDoubleGap); });
-            if (routingCost < 0) {
-                // failed to solve tsp with lkh
-                ;
-            }
+            if (routingCost < 0) { continue; }
 
             // update optimal.
             if (holdingCost + routingCost < currentObjective.totalCost) {
@@ -109,16 +109,16 @@ bool IrpModelSolver::solveIteratively() {
 
             // forbid current solution with lazy constraints
             // gurantee that visited node set different from current solution.
-            MpSolver::LinearExpr nodeDiff = 0;
+            LinearExpr nodeDiff = 0;
             for (ID v = 0; v < input.vehicleNum; ++v) {
                 for (ID t = 0; t < input.periodNum; ++t) {
                     for (ID i = 1; i < input.nodeNum; ++i) {
-                        MpSolver::LinearExpr degree = 0;
+                        LinearExpr degree = 0;
                         for (ID j = 0; j < input.nodeNum; ++j) {
                             if (j == i) { continue; }
                             degree += x.xEdge[v][t][i][j];
                         }
-                        if (mpSolver.getValue(x.xQuantity[v][t][i]) <= DefaultDoubleGap) {
+                        if (mpSolver.getValue(x.xQuantity[v][t][i]) < DefaultDoubleGap) {
                             // unvisited node.
                             nodeDiff += degree;
                         } else {
@@ -164,7 +164,7 @@ bool IrpModelSolver::solveInventoryModel() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xVisited[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
             presetX.xVisited[v][t].resize(input.nodeNum);
             fill(presetX.xVisited[v][t].begin(), presetX.xVisited[v][t].end(), false);
             for (ID i = 0; i < input.nodeNum; ++i) {
@@ -182,7 +182,9 @@ bool IrpModelSolver::solveTspModel() {
     addRoutingVariables();
     addNodeDegreeConstraints();
     setRoutingCostObjective();
-    mpSolver.setCallback(&tspCallback);
+
+    TspSolutionFound cb(*this);
+    mpSolver.setCallback(&cb);
     if (!mpSolver.optimize()) {
         elapsedSeconds = mpSolver.getDurationInSecond();
         return false;
@@ -242,7 +244,7 @@ void IrpModelSolver::retrieveSolution() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xEdge[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             presetX.xEdge[v][t].resize(input.nodeNum);
             for (ID i = 0; i < input.nodeNum; ++i) {
                 presetX.xEdge[v][t][i].resize(input.nodeNum);
@@ -260,7 +262,7 @@ void IrpModelSolver::retrieveSolution() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xQuantity[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
             presetX.xQuantity[v][t].resize(input.nodeNum);
             fill(presetX.xQuantity[v][t].begin(), presetX.xQuantity[v][t].end(), 0);
             for (ID i = 0; i < input.nodeNum; ++i) {
@@ -296,12 +298,12 @@ void IrpModelSolver::retrieveSolution() {
         }
     }
 
-    if (cfg.useLazyConstraints) { return; }
+    if (cfg.isSubtoursAllowed() || cfg.isEliminationLazy()) { return; }
     presetX.xSequence.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xSequence[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             presetX.xSequence[v][t].resize(input.nodeNum);
             fill(presetX.xSequence[v][t].begin(), presetX.xSequence[v][t].end(), 0);
             for (ID i = 0; i < input.nodeNum; ++i) {
@@ -312,7 +314,7 @@ void IrpModelSolver::retrieveSolution() {
     }
 }
 
-void IrpModelSolver::retrieveDeliveryQuantity(PresetX &presetX, std::function<double(ID v, ID t, ID i)> getQuantity) {
+void IrpModelSolver::retrieveDeliveryQuantity(PresetX &presetX, GetValueById<double> getQuantity) {
     presetX.xEdge.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         presetX.xEdge[v].resize(input.periodNum);
@@ -338,7 +340,7 @@ void IrpModelSolver::retrieveDeliveryQuantity(PresetX &presetX, std::function<do
     }
 }
 
-void IrpModelSolver::saveSolution(const Input &input, const PresetX &presetX, const string &path) {
+void IrpModelSolver::saveSolution(const Input &input, const PresetX &presetX, const String &path) {
     ofstream ofs(path);
 
     for (ID t = 0; t < input.periodNum; ++t) {
@@ -375,7 +377,7 @@ void IrpModelSolver::addDecisionVars() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xEdge[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             x.xEdge[v][t].resize(input.nodeNum);
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
@@ -385,7 +387,7 @@ void IrpModelSolver::addDecisionVars() {
                     if (i == j) { continue; }
                     ostringstream oss;
                     oss << "x_" << v << "_" << t << "_" << i << "_" << j;
-                    x.xEdge[v][t][i][j] = mpSolver.makeVar(MpSolver::VariableType::Bool, 0, 1, oss.str());
+                    x.xEdge[v][t][i][j] = mpSolver.makeVar(VariableType::Bool, 0, 1, oss.str());
                 }
             }
         }
@@ -395,38 +397,38 @@ void IrpModelSolver::addDecisionVars() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xQuantity[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
             x.xQuantity[v][t].resize(input.nodeNum);
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 ostringstream oss;
                 oss << "q_" << v << "_" << t << "_" << i;
-                x.xQuantity[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity), oss.str());
+                x.xQuantity[v][t][i] = mpSolver.makeVar(VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity), oss.str());
             }
         }
     }
-    if (cfg.allowShortage) {
+    if (cfg.isShortageRelaxed()) {
         x.xMinLevel.resize(input.nodeNum);
         x.xShortage.resize(input.nodeNum);
-        x.xShortage[0] = mpSolver.makeVar(MpSolver::VariableType::Bool);
+        x.xShortage[0] = mpSolver.makeVar(VariableType::Bool);
         for (ID i = 1; i < input.nodeNum; ++i) {
-            x.xMinLevel[i] = mpSolver.makeVar(MpSolver::VariableType::Real, -Infinity, input.nodes[i].capacity);
-            x.xShortage[i] = mpSolver.makeVar(MpSolver::VariableType::Real, 0, Infinity);
+            x.xMinLevel[i] = mpSolver.makeVar(VariableType::Real, -Infinity, input.nodes[i].capacity);
+            x.xShortage[i] = mpSolver.makeVar(VariableType::Real, 0, Infinity);
         }
     }
 
-    if (cfg.useLazyConstraints) { return; }
+    if (cfg.isSubtoursAllowed() || cfg.isEliminationLazy()) { return; }
     x.xSequence.resize(input.vehicleNum);
     for (ID v = 0; v < input.vehicleNum; ++v) {
         x.xSequence[v].resize(input.periodNum);
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             x.xSequence[v][t].resize(input.nodeNum);
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 ostringstream oss;
                 oss << "u_" << v << "_" << t << "_" << i;
-                x.xSequence[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Integer, 1, input.nodeNum, oss.str());
+                x.xSequence[v][t][i] = mpSolver.makeVar(VariableType::Integer, 1, input.nodeNum, oss.str());
             }
         }
     }
@@ -434,13 +436,13 @@ void IrpModelSolver::addDecisionVars() {
 
 void IrpModelSolver::addPathConnectivityConstraint() {
     for (ID t = 0; t < input.periodNum; ++t) {
-        if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+        if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
         for (ID i = 0; i < input.nodeNum; ++i) {
             if (aux.skipNode[t][i]) { continue; }
-            MpSolver::LinearExpr visitedTime = 0;
+            LinearExpr visitedTime = 0;
             for (ID v = 0; v < input.vehicleNum; ++v) {
-                MpSolver::LinearExpr inEdge = 0;
-                MpSolver::LinearExpr outEdge = 0;
+                LinearExpr inEdge = 0;
+                LinearExpr outEdge = 0;
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if (i == j) { continue; }
                     if (aux.skipNode[t][j]) { continue; }
@@ -462,13 +464,13 @@ void IrpModelSolver::addPathConnectivityConstraint() {
 
 void IrpModelSolver::addDeliveryQuantityConstraint() {
     for (ID t = 0; t < input.periodNum; ++t) {
-        if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+        if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
         // for supplier
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            MpSolver::LinearExpr visitedTime = 0;
+            LinearExpr visitedTime = 0;
             for (ID j = 1; j < input.nodeNum; ++j) {
                 if (aux.skipNode[t][j]) { continue; }
-                if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && cfg.optimizeTotalCost) {
+                if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && cfg.withGlobalOptimization()) {
                     if (presetX.xEdge[v][t][0][j]) { visitedTime += 1; break; }
                 } else {
                     visitedTime += x.xEdge[v][t][0][j];
@@ -480,14 +482,14 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
         // for customers
         for (ID i = 1; i < input.nodeNum; ++i) {
             if (aux.skipNode[t][i]) { continue; }
-            MpSolver::LinearExpr totalQuantity = 0;
-            MpSolver::LinearExpr visitedTime = 0;
+            LinearExpr totalQuantity = 0;
+            LinearExpr visitedTime = 0;
             for (ID v = 0; v < input.vehicleNum; ++v) {
                 totalQuantity += x.xQuantity[v][t][i];
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if (i == j) { continue; }
                     if (aux.skipNode[t][j]) { continue; }
-                    if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && cfg.optimizeTotalCost) {
+                    if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && cfg.withGlobalOptimization()) {
                         if (presetX.xEdge[v][t][i][j]) { visitedTime += 1; break; }
                     } else {
                         visitedTime += x.xEdge[v][t][i][j];
@@ -502,7 +504,7 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
     //    for (ID t = 0; t < input.periodNum; ++t) {
     //        for (ID i = 1; i < input.nodeNum; ++i) {
     //            if (aux.skipNode[t][i]) { continue; }
-    //            MpSolver::LinearExpr visitedTime = 0;
+    //            LinearExpr visitedTime = 0;
     //            for (ID j = 0; j < input.nodeNum; ++j) {
     //                if (i == j) { continue; }
     //                if (aux.skipNode[t][j]) { continue; }
@@ -517,8 +519,8 @@ void IrpModelSolver::addDeliveryQuantityConstraint() {
 void IrpModelSolver::addLoadDeliveryBalanceConstraint() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
-            MpSolver::LinearExpr totalQuantity = 0;
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
+            LinearExpr totalQuantity = 0;
             for (ID i = 1; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 totalQuantity += x.xQuantity[v][t][i];
@@ -530,12 +532,12 @@ void IrpModelSolver::addLoadDeliveryBalanceConstraint() {
 
 void IrpModelSolver::addCustomerLevelConstraint() {
     for (ID i = 1; i < input.nodeNum; ++i) {
-        MpSolver::LinearExpr restQuantity = 0;
+        LinearExpr restQuantity = 0;
         restQuantity += input.nodes[i].initialQuantity;
         for (ID t = 0; t < input.periodNum; ++t) {
             if (!aux.skipNode[t][i]) {
                 for (ID v = 0; v < input.vehicleNum; ++v) {
-                    if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
+                    if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) {
                         restQuantity += presetX.xQuantity[v][t][i];
                     } else {
                         restQuantity += x.xQuantity[v][t][i];
@@ -544,20 +546,20 @@ void IrpModelSolver::addCustomerLevelConstraint() {
             }
             mpSolver.makeConstraint(restQuantity <= input.nodes[i].capacity, str("mc", i, t));
             restQuantity -= input.nodes[i].unitDemand;
-            mpSolver.makeConstraint(restQuantity >= (cfg.allowShortage ? x.xMinLevel[i] : MpSolver::LinearExpr(input.nodes[i].minLevel)), "ml");
+            mpSolver.makeConstraint(restQuantity >= (cfg.isShortageRelaxed() ? x.xMinLevel[i] : LinearExpr(input.nodes[i].minLevel)), "ml");
         }
-        if (cfg.allowShortage) {
+        if (cfg.isShortageRelaxed()) {
             mpSolver.makeConstraint(x.xShortage[i] >= -x.xMinLevel[i], "sm");
         }
     }
 }
 
 void IrpModelSolver::addSupplierLevelConstraint() {
-    MpSolver::LinearExpr restQuantity = 0;
+    LinearExpr restQuantity = 0;
     restQuantity += input.nodes[0].initialQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) {
                 restQuantity -= presetX.xQuantity[v][t][0];
             } else {
                 restQuantity -= x.xQuantity[v][t][0];
@@ -588,11 +590,11 @@ void IrpModelSolver::addSubtourEliminationConstraint() {
 }
 
 void IrpModelSolver::setInitSolution() {
-    if (!cfg.usePresetSolution || presetX.xEdge.empty()) { return; }
+    if (!cfg.isPresetEnabled() || presetX.xEdge.empty()) { return; }
 
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (presetX.isPeriodFixed[t]) { continue; }
+            if (aux.isPeriodFixed[t]) { continue; }
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 for (ID j = 0; j < input.nodeNum; ++j) {
@@ -605,7 +607,7 @@ void IrpModelSolver::setInitSolution() {
     }
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+            if (aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 mpSolver.setInitValue(x.xQuantity[v][t][i], presetX.xQuantity[v][t][i]);
@@ -613,10 +615,10 @@ void IrpModelSolver::setInitSolution() {
         }
     }
 
-    if (cfg.useLazyConstraints) { return; }
+    if (cfg.isSubtoursAllowed() || cfg.isEliminationLazy()) { return; }
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (presetX.isPeriodFixed[t]) { continue; }
+            if (aux.isPeriodFixed[t]) { continue; }
             for (ID i = 0; i < input.nodeNum; ++i) {
                 if (aux.skipNode[t][i]) { continue; }
                 mpSolver.setInitValue(x.xSequence[v][t][i], presetX.xSequence[v][t][i]);
@@ -638,12 +640,12 @@ void IrpModelSolver::addInventoryVariables() {
             // load quantity at supplier is negative in irp model, positive otherwise.  
             for (ID i = 0; i < input.nodeNum; ++i) {
                 x.xQuantity[v][t][i] = mpSolver.makeVar(
-                    MpSolver::VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
-                if (cfg.usePresetSolution) {
+                    VariableType::Real, 0, min(input.vehicleCapacity, input.nodes[i].capacity));
+                if (cfg.isPresetEnabled()) {
                     double value = (presetX.xVisited[v][t][i] ? 1 : 0);
-                    x.xVisited[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool, value, value);
+                    x.xVisited[v][t][i] = mpSolver.makeVar(VariableType::Bool, value, value);
                 } else {
-                    x.xVisited[v][t][i] = mpSolver.makeVar(MpSolver::VariableType::Bool);
+                    x.xVisited[v][t][i] = mpSolver.makeVar(VariableType::Bool);
                 }
             }
         }
@@ -662,7 +664,7 @@ void IrpModelSolver::addInventoryVariables() {
 void IrpModelSolver::addNodeCapacityConstraint() {
     // for customers.
     for (ID i = 1; i < input.nodeNum; ++i) {
-        MpSolver::LinearExpr restQuantity = input.nodes[i].initialQuantity;
+        LinearExpr restQuantity = input.nodes[i].initialQuantity;
         for (ID t = 0; t < input.periodNum; ++t) {
             for (ID v = 0; v < input.vehicleNum; ++v) {
                 restQuantity += x.xQuantity[v][t][i];
@@ -673,7 +675,7 @@ void IrpModelSolver::addNodeCapacityConstraint() {
         }
     }
     // for supplier.
-    MpSolver::LinearExpr restQuantity = input.nodes[0].initialQuantity;
+    LinearExpr restQuantity = input.nodes[0].initialQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
             restQuantity -= x.xQuantity[v][t][0];
@@ -686,7 +688,7 @@ void IrpModelSolver::addNodeCapacityConstraint() {
 void IrpModelSolver::addQuantityConsistencyConstraint() {
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            MpSolver::LinearExpr expr = -x.xQuantity[v][t][0];
+            LinearExpr expr = -x.xQuantity[v][t][0];
             for (ID i = 1; i < input.nodeNum; ++i) {
                 expr += x.xQuantity[v][t][i];
             }
@@ -698,8 +700,8 @@ void IrpModelSolver::addQuantityConsistencyConstraint() {
 void IrpModelSolver::setHoldingCostObjective() {
     const int ObjWeight = 0;
 
-    MpSolver::LinearExpr totalCost = 0;
-    MpSolver::LinearExpr restQuantity = input.nodes[0].initialQuantity;
+    LinearExpr totalCost = 0;
+    LinearExpr restQuantity = input.nodes[0].initialQuantity;
     totalCost += input.nodes[0].holdingCost * restQuantity;
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
@@ -723,7 +725,7 @@ void IrpModelSolver::setHoldingCostObjective() {
 
     for (ID i = 1; i < input.nodeNum; ++i) {
         int leastDeliveryNum = ceil(double(input.nodes[i].unitDemand * 6 - input.nodes[i].initialQuantity) / input.nodes[i].capacity);
-        MpSolver::LinearExpr times = 0;
+        LinearExpr times = 0;
         for (ID v = 0; v < input.vehicleNum; ++v) {
             for (ID t = 0; t < input.periodNum; ++t) {
                 times += x.xVisited[v][t][i];
@@ -732,7 +734,7 @@ void IrpModelSolver::setHoldingCostObjective() {
         //totalCost += (times - leastDeliveryNum) * 0;
     }
 
-    MpSolver::LinearExpr estimatedRoutingCost = 0;
+    LinearExpr estimatedRoutingCost = 0;
     for (ID i = 1; i < input.nodeNum; ++i) {
         for (ID t = 0; t < input.periodNum; ++t) {
             for (ID v = 0; v < input.vehicleNum; ++v) {
@@ -743,7 +745,7 @@ void IrpModelSolver::setHoldingCostObjective() {
 
     //totalCost = estimatedRoutingCost;
 
-    mpSolver.setObjective(totalCost, MpSolver::OptimaOrientation::Minimize);
+    mpSolver.setObjective(totalCost, OptimaOrientation::Minimize);
 }
 
 void IrpModelSolver::addRoutingVariables() {
@@ -756,7 +758,7 @@ void IrpModelSolver::addRoutingVariables() {
                 x.xEdge[v][t][i].resize(input.nodeNum);
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if (i == j) { continue; }
-                    x.xEdge[v][t][i][j] = mpSolver.makeVar(MpSolver::VariableType::Bool, 0, 1);
+                    x.xEdge[v][t][i][j] = mpSolver.makeVar(VariableType::Bool, 0, 1);
                 }
             }
         }
@@ -767,8 +769,8 @@ void IrpModelSolver::addNodeDegreeConstraints() {
     for (ID t = 0; t < input.periodNum; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
             for (ID i = 0; i < input.nodeNum; ++i) {
-                MpSolver::LinearExpr inEdge = 0;
-                MpSolver::LinearExpr outEdge = 0;
+                LinearExpr inEdge = 0;
+                LinearExpr outEdge = 0;
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if (i == j) { continue; }
                     inEdge += x.xEdge[v][t][j][i];
@@ -782,15 +784,15 @@ void IrpModelSolver::addNodeDegreeConstraints() {
 }
 
 void IrpModelSolver::setRoutingCostObjective() {
-    mpSolver.setObjective(routingCostInPeriod(0, input.periodNum), MpSolver::OptimaOrientation::Minimize);
+    mpSolver.setObjective(routingCostInPeriod(0, input.periodNum), OptimaOrientation::Minimize);
 }
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::totalCostInPeriod(int start, int size, bool addInitial) {
+IrpModelSolver::LinearExpr IrpModelSolver::totalCostInPeriod(int start, int size, bool addInitial) {
     return (routingCostInPeriod(start, size) + holdingCostInPeriod(start, size, addInitial));
 }
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::routingCostInPeriod(int start, int size) {
-    MpSolver::LinearExpr totalCost = 0;
+IrpModelSolver::LinearExpr IrpModelSolver::routingCostInPeriod(int start, int size) {
+    LinearExpr totalCost = 0;
 
     for (ID t = start; (t < start + size) && (t < input.periodNum); ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
@@ -798,7 +800,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::routingCostInPeriod(int sta
                 if (aux.skipNode[t][i]) { continue; }
                 for (ID j = 0; j < input.nodeNum; ++j) {
                     if ((i == j) || aux.skipNode[t][j]) { continue; }
-                    if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) {
+                    if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) {
                         totalCost += routingCost[i][j] * (presetX.xEdge[v][t][i][j] ? 1 : 0);
                     } else {
                         totalCost += routingCost[i][j] * x.xEdge[v][t][i][j];
@@ -810,18 +812,18 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::routingCostInPeriod(int sta
     return totalCost;
 }
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int start, int size, bool addInitial) {
-    MpSolver::LinearExpr totalCost = 0;
+IrpModelSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int start, int size, bool addInitial) {
+    LinearExpr totalCost = 0;
 
     // cost for supplier.
-    MpSolver::LinearExpr restQuantity = input.nodes[0].initialQuantity;
+    LinearExpr restQuantity = input.nodes[0].initialQuantity;
     if (addInitial && (start == 0)) {
         // add holding cost of initial quantity.
         totalCost += input.nodes[0].holdingCost * restQuantity;
     }
     for (ID t = 0; (t < start + size) && (t < input.periodNum); ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) {
                 restQuantity -= presetX.xQuantity[v][t][0];
             } else {
                 restQuantity -= x.xQuantity[v][t][0];
@@ -843,7 +845,7 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
              //check skipped nodes
             if (!aux.skipNode[t][i]) {
                 for (ID v = 0; v < input.vehicleNum; ++v) {
-                    if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) {
+                    if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) {
                         restQuantity += presetX.xQuantity[v][t][i];
                     } else {
                         restQuantity += x.xQuantity[v][t][i];
@@ -859,10 +861,10 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
 }
 
 // TODO[qym][5]: to delete 
-//IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::increasedHoldingCost(ID t) {
-//    MpSolver::LinearExpr totalCost = 0;
+//IrpModelSolver::LinearExpr IrpModelSolver::increasedHoldingCost(ID t) {
+//    LinearExpr totalCost = 0;
 //
-//    if (!cfg.usePresetSolution || !presetX.isPeriodFixed[t]) { return 0; }
+//    if (!cfg.isPresetEnabled() || !aux.isPeriodFixed[t]) { return 0; }
 //    for (ID v = 0; v < input.vehicleNum; ++v) {
 //        totalCost -= input.nodes[0].holdingCost * (x.xQuantity[v][t][0] - presetX.xQuantity[v][t][0]);
 //    }
@@ -876,8 +878,8 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int sta
 //    return totalCost;
 //}
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::restQuantityUntilPeriod(ID node, int size) {
-    MpSolver::LinearExpr totalQuantity = 0;
+IrpModelSolver::LinearExpr IrpModelSolver::restQuantityUntilPeriod(ID node, int size) {
+    LinearExpr totalQuantity = 0;
     for (ID t = 0; t < size; ++t) {
         for (ID v = 0; v < input.vehicleNum; ++v) {
             totalQuantity += x.xQuantity[v][t][node];
@@ -888,15 +890,15 @@ IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::restQuantityUntilPeriod(ID 
     return (input.nodes[node].initialQuantity + totalQuantity);
 }
 
-IrpModelSolver::MpSolver::LinearExpr IrpModelSolver::totalShortageQuantity() {
-    MpSolver::LinearExpr shortage = 0;
+IrpModelSolver::LinearExpr IrpModelSolver::totalShortageQuantity() {
+    LinearExpr shortage = 0;
     for (ID i = 1; i < input.nodeNum; ++i) {
         shortage += x.xShortage[i];
     }
     return shortage;
 }
 
-double IrpModelSolver::getHoldingCost(const List2D<List<MpSolver::DecisionVar>> &quantity, std::function<double(MpSolver::DecisionVar)> getValue) {
+double IrpModelSolver::getHoldingCost(const List3D<DecisionVar> &quantity, GetVarValue<double> getValue) {
     double totalCost = 0;
     List2D<int> rq(input.nodeNum, List<int>(input.periodNum + 1, 0));
     // cost for supplier.
@@ -930,7 +932,7 @@ double IrpModelSolver::getHoldingCost(const List2D<List<MpSolver::DecisionVar>> 
     return totalCost;
 }
 
-double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<bool(ID, ID, ID)> isVisited) {
+double IrpModelSolver::solveVrpWithLkh(List2D<CachedTspSolver::Tour>& tours, GetValueById<bool> isVisited) {
     // add tsp cache
     CachedTspSolver tspSolver(input.nodeNum, aux.tspCacheFilePath);
 
@@ -952,7 +954,7 @@ double IrpModelSolver::solveVrpWithLkh(List2D<lkh::Tour>& tours, std::function<b
             if (visitedNodes.size() < 2) { continue; }
             if (visitedNodes.size() >= 3) {
                 CachedTspSolver::Tour tour;
-                if (!tspSolver.solve(tour, containNode, coords, [&](ID n) { return visitedNodes[n]; })) { return false; }
+                if (!tspSolver.solve(tour, containNode, coords, [&](ID n) { return visitedNodes[n]; })) { return -1; }
                 //if (lkh::solveTsp(tour, coordList)) {
                     //cout << "Failed to optimize period " << t << endl;
                     //return -1;
@@ -980,7 +982,7 @@ bool IrpModelSolver::check() {
     // check subtour
     for (ID v = 0; v < input.vehicleNum; ++v) {
         for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
             List<bool> visited(input.nodeNum, false);
             visited[0] = true;
             ID n = 0;
@@ -1019,7 +1021,7 @@ bool IrpModelSolver::check() {
 
     // check quantity reasonability
     for (ID t = 0; t < input.periodNum; ++t) {
-        if (cfg.usePresetSolution && presetX.isPeriodFixed[t] && !cfg.optimizeTotalCost) { continue; }
+        if (cfg.isPresetEnabled() && aux.isPeriodFixed[t] && !cfg.withGlobalOptimization()) { continue; }
         for (ID v = 0; v < input.vehicleNum; ++v) {
             for (ID i = 0; i < input.nodeNum; ++i) {
                 int visitedTimes = 0;
@@ -1087,70 +1089,81 @@ bool IrpModelSolver::check() {
     cout << "\nOBJ (R+H) = " << totalCost << " = " << totalRoutingCost << " (" << totalRoutingCost / totalCost << ") + " << totalHoldingCost << " (" << totalHoldingCost / totalCost << ")\n\n" << endl;
 
     // check obj match.
-    List<bool> backup(presetX.isPeriodFixed);
-    fill(presetX.isPeriodFixed.begin(), presetX.isPeriodFixed.end(), true);
-    if (!cfg.allowShortage && (totalCost - getTotalCostInPeriod(0, input.periodNum) > DefaultDoubleGap)) {
+    List<bool> backup(aux.isPeriodFixed);
+    fill(aux.isPeriodFixed.begin(), aux.isPeriodFixed.end(), true);
+    if (!cfg.isShortageRelaxed() && (totalCost - getTotalCostInPeriod(0, input.periodNum) > DefaultDoubleGap)) {
         cout << "Worse actual objective = " << totalCost << ">" << getTotalCostInPeriod(0, input.periodNum) << endl;
-        presetX.isPeriodFixed = backup;
+        aux.isPeriodFixed = backup;
         return false;
-    } else if (!cfg.allowShortage && (getTotalCostInPeriod(0, input.periodNum) - totalCost > DefaultDoubleGap)) {
+    } else if (!cfg.isShortageRelaxed() && (getTotalCostInPeriod(0, input.periodNum) - totalCost > DefaultDoubleGap)) {
         cout << "Better actual objective = " << totalCost << "<" << getTotalCostInPeriod(0, input.periodNum) << endl;
     }
-    presetX.isPeriodFixed = backup;
+    aux.isPeriodFixed = backup;
 
     return true;
 }
 
-bool IrpModelSolver::eliminateSubtour(
-    function<bool(const MpSolver::DecisionVar&)> isTrue,
-    function<void(const MpSolver::LinearRange&)> addLazy) {
-    bool subtourFound = false;
-    for (ID v = 0; v < input.vehicleNum; ++v) {
-        for (ID t = 0; t < input.periodNum; ++t) {
-            if (cfg.usePresetSolution && presetX.isPeriodFixed[t]) { continue; }
-            List<bool> visited(input.nodeNum, false);
-            visited[0] = true;
-            ID n = 0;
-            do {
-                for (ID i = 0; i < input.nodeNum; ++i) {
-                    if (n == i) { continue; }
-                    if (aux.skipNode[t][i]) { continue; }
-                    if (isTrue(x.xEdge[v][t][n][i])) {
-                        visited[i] = true;
-                        n = i;
-                        break;
-                    }
+bool IrpModelSolver::eliminateSubtour(GetVarValue<bool> isTrue, MakeConstraint addLazy) {
+    auto findLoop = [&](ID v, ID t, ID s, List<bool> &visited, function<void(const DecisionVar&)> process) {
+        int len = 0;
+        ID i = s;
+        do {
+            for (ID j = 0; j < input.nodeNum; ++j) {
+                if ((j == i) || visited[j] || aux.skipNode[t][j]) { continue; }
+                if (isTrue(x.xEdge[v][t][i][j])) {
+                    visited[j] = true;
+                    process(x.xEdge[v][t][i][j]);
+                    ++len;
+                    i = j;
+                    break;
                 }
-            } while (n != 0);
-            for (ID s = 1; s < input.nodeNum; ++s) {
-                if (visited[s]) { continue; }
-                if (aux.skipNode[t][s]) { continue; }
-                MpSolver::LinearExpr expr = 0;
-                List<ID> path;
-                int len = 0;
-                n = s;
-                path.push_back(n);
-                do {
-                    for (ID i = 0; i < input.nodeNum; ++i) {
-                        if (n == i) { continue; }
-                        if (aux.skipNode[t][i]) { continue; }
-                        if (isTrue(x.xEdge[v][t][n][i])) {
-                            expr += x.xEdge[v][t][n][i];
-                            ++len;
-                            visited[i] = true;
-                            n = i;
-                            path.push_back(n);
-                            break;
-                        }
+            }
+        } while (i != s);
+        visited[s] = true;
+        return len;
+    };
+
+    bool subtourFound = false;
+    bool terminateLoop = false;
+    Length maxLen = 0; // node count
+    LinearExpr bestSubtour = 0;
+    int bestSubtourCount = 0;
+    for (ID v = 0; (v < input.vehicleNum) && !terminateLoop; ++v) {
+        for (ID t = 0; (t < input.periodNum) && !terminateLoop; ++t) {
+            if (cfg.isPresetEnabled() && aux.isPeriodFixed[t]) { continue; }
+            List<bool> visited(input.nodeNum, false);
+            findLoop(v, t, 0, visited, [](const DecisionVar &var) { return; });
+
+            // find sub tours.
+            for (ID s = 1; (s < input.nodeNum) && !terminateLoop; ++s) {
+                if (visited[s] || aux.skipNode[t][s]) { continue; }
+                LinearExpr subtour = 0;
+                int len = findLoop(v, t, s, visited, [&](const DecisionVar &var) { subtour += var; });
+                if (len <= 0) { continue; }
+                subtourFound = true;
+                if (cfg.subtourPolicy == Configuration::SubtourPolicy::EliminateAllSubtours) {
+                    addLazy(subtour <= len - 1);
+                } else if (cfg.subtourPolicy == Configuration::SubtourPolicy::EliminateFirstSubtour) {
+                    maxLen = len;
+                    bestSubtour = subtour;
+                    terminateLoop = true;
+                } else if (cfg.subtourPolicy == Configuration::SubtourPolicy::EliminateLongestSubtour) {
+                    if (len > maxLen) {
+                        maxLen = len;
+                        bestSubtour = subtour;
+                        bestSubtourCount = 1;
+                    } else if (len == maxLen) {
+                        ++bestSubtourCount;
+                        bool update = (rand() % bestSubtourCount < 1);
+                        maxLen = (update ? len : maxLen);
+                        bestSubtour = (update ? subtour : bestSubtour);
                     }
-                } while (n != s);
-                if (len > 0) {
-                    addLazy(expr <= len - 1);
-                    subtourFound = true;
-                    if (!cfg.forbidAllSubtours) { break; }
                 }
             }
         }
+    }
+    if (subtourFound && (cfg.subtourPolicy != Configuration::SubtourPolicy::EliminateAllSubtours)) {
+        addLazy(bestSubtour <= maxLen - 1);
     }
     return subtourFound;
 }
@@ -1159,11 +1172,10 @@ void IrpModelSolver::SolutionFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
             bool subtourFound = false;
-            if (solver.cfg.useLazyConstraints && !solver.cfg.allowSubtour) {
+            if (solver.cfg.isEliminationLazy()) {
                 subtourFound = solver.eliminateSubtour(
-                    [&](const MpSolver::DecisionVar &var) { return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap)); },
+                    [&](const DecisionVar &var) { return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap)); },
                     [&](const GRBTempConstr& tc) { addLazy(tc); });
-
             }
             if (subtourFound) { return; }
 
@@ -1177,7 +1189,7 @@ void IrpModelSolver::SolutionFound::callback() {
                 solver.currentObjective.totalCost = getDoubleInfo(GRB_CB_MIPSOL_OBJ);
                 solver.elapsedSeconds = getDoubleInfo(GRB_CB_RUNTIME);
             }
-            //if (solver.cfg.usePresetSolution
+            //if (solver.cfg.isPresetEnabled()
             //    && (getDoubleInfo(GRB_CB_MIP_OBJBST) - getDoubleInfo(GRB_CB_MIP_OBJBND) / getDoubleInfo(GRB_CB_MIP_OBJBND) < 0.05)) {
             //    abort();
             //}
@@ -1212,7 +1224,7 @@ void IrpModelSolver::TspSolutionFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
             solver.eliminateSubtour(
-                [&](const MpSolver::DecisionVar &var) { return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap)); },
+                [&](const DecisionVar &var) { return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap)); },
                 [&](const GRBTempConstr& tc) { addLazy(tc); });
         }
     } catch (GRBException e) {
@@ -1223,17 +1235,24 @@ void IrpModelSolver::TspSolutionFound::callback() {
     }
 }
 
-void IrpModelSolver::InfeasibleFound::callback() {
+void IrpModelSolver::RelaxedSolutionFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
-            if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > min(solver.currentObjective.totalCost , input.referenceObjective)) { return; }
+            //if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > min(solver.currentObjective.totalCost, input.referenceObjective)) { return; }
+            if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > solver.currentObjective.totalCost) { return; }
+            // eliminate sub tours.
+            bool subtourFound = solver.eliminateSubtour(
+                [&](const DecisionVar &var) { return (getSolution(var) > (1 - IrpModelSolver::DefaultDoubleGap)); },
+                [&](const GRBTempConstr& tc) { addLazy(tc); });
+
             // solve tsp with lkh.
-            List2D<lkh::Tour> tours;
+            List2D<CachedTspSolver::Tour> tours;
             double holdingCost = getHoldingCost();
             double routingCost = 
                 solver.solveVrpWithLkh(tours, [&](ID v, ID t, ID i) { return (getSolution(solver.x.xQuantity[v][t][i]) > DefaultDoubleGap); });
             if (routingCost < 0) {
                 // failed to solve tsp with lkh
+                return;
             }
 
             // forbid current solution with lazy constraints
@@ -1242,10 +1261,10 @@ void IrpModelSolver::InfeasibleFound::callback() {
                 // make the visited nodes set different at a randomly selected period.
                 ID v = rand() % input.vehicleNum;
                 ID t = rand() % input.periodNum;
-                MpSolver::LinearExpr diffCount = 0;
+                LinearExpr diffCount = 0;
                 for (ID i = 1; i < input.nodeNum; ++i) {
                     bool visited = false;
-                    MpSolver::LinearExpr degree = 0;
+                    LinearExpr degree = 0;
                     for (ID j = 0; j < input.nodeNum; ++j) {
                         if (j == i) { continue; }
                         if (isTrue(solver.x.xEdge[v][t][i][j])) { visited = true; }
@@ -1263,15 +1282,13 @@ void IrpModelSolver::InfeasibleFound::callback() {
             }
 
             if (strategy == 2) {
-                ostringstream oss;
                 // gurantee that visited node set different from current solution.
-                MpSolver::LinearExpr diffCount = 0;
+                LinearExpr diffCount = 0;
                 for (ID v = 0; v < input.vehicleNum; ++v) {
                     for (ID t = 0; t < input.periodNum; ++t) {
-                        oss << "Period " << t << endl;
                         for (ID i = 0; i < input.nodeNum; ++i) {
                             bool visited = false;
-                            MpSolver::LinearExpr degree = 0;
+                            LinearExpr degree = 0;
                             for (ID j = 0; j < input.nodeNum; ++j) {
                                 if (j == i) { continue; }
                                 if (isTrue(solver.x.xEdge[v][t][i][j])) { visited = true; }
@@ -1284,16 +1301,10 @@ void IrpModelSolver::InfeasibleFound::callback() {
                                 // unvisited node.
                                 diffCount += degree;
                             }
-                            oss << visited << "," << getSolution(solver.x.xQuantity[v][t][i]) << endl;
                         }
-                        oss << endl;
                     }
                 }
                 addLazy(diffCount >= 1);
-
-                //ofstream ofs("ttttext.csv", ios::app);
-                //ofs << oss.str() << (holdingCost + routingCost) << endl;
-                //ofs.close();
             }
 
             // ½ûµôÀë²Ö¿âÌ«Ô¶µÄ×Ó»ØÂ·
@@ -1328,7 +1339,7 @@ void IrpModelSolver::InfeasibleFound::callback() {
                 }
                 for (ID v = 0; v < input.vehicleNum; ++v) {
                     for (ID t = 0; t < input.periodNum; ++t) {
-                        MpSolver::LinearExpr expr = 0;
+                        LinearExpr expr = 0;
                         for (auto i = nodes.begin(); i != nodes.end(); ++i) {
                             for (ID j = 0; j < input.nodeNum; ++j) {
                                 if (*i == j) { continue; }
@@ -1342,25 +1353,25 @@ void IrpModelSolver::InfeasibleFound::callback() {
                 //for (ID v = 0; v < input.vehicleNum; ++v) {
                 //    for (ID t = 0; t < input.periodNum; ++t) {
                 //        List<bool> visited(input.nodeNum, false);
-                //        List<List<ID>> subTours;
+                //        List<List<ID>> subtours;
                 //        for (ID i = 0; i < input.nodeNum; ++i) {
                 //            if (visited[i]) { continue; }
                 //            ID p = i;
-                //            List<ID> subTour;
+                //            List<ID> subtour;
                 //            do {
                 //                for (ID j = 0; j < input.nodeNum; ++j) {
                 //                    if (p == j) { continue; }
                 //                    if (isTrue(solver.x.xEdge[v][t][p][j])) {
-                //                        subTour.push_back(p);
+                //                        subtour.push_back(p);
                 //                        visited[p] = true;
                 //                        p = j;
                 //                        break;
                 //                    }
                 //                }
                 //            } while (p != i);
-                //            if (subTour.size() > 0) { subTour.push_back(p); subTours.push_back(subTour); }
+                //            if (subtour.size() > 0) { subtour.push_back(p); subtours.push_back(subtour); }
                 //        }
-                //        for (auto s = subTours.begin(); s != subTours.end(); ++s) {
+                //        for (auto s = subtours.begin(); s != subtours.end(); ++s) {
                 //            for (auto n = s->begin(); n != s->end(); ++n) {
                 //                cout << *n << "\t";
                 //            }
@@ -1390,11 +1401,11 @@ void IrpModelSolver::InfeasibleFound::callback() {
     }
 }
 
-double IrpModelSolver::InfeasibleFound::getHoldingCost() {
-    return solver.getHoldingCost(solver.x.xQuantity, [&](const MpSolver::DecisionVar &var) { return getSolution(var); });
+double IrpModelSolver::RelaxedSolutionFound::getHoldingCost() {
+    return solver.getHoldingCost(solver.x.xQuantity, [&](const DecisionVar &var) { return getSolution(var); });
 }
 
-void IrpModelSolver::InfeasibleFound::retrieveDeliveryQuantity() {
+void IrpModelSolver::RelaxedSolutionFound::retrieveDeliveryQuantity() {
     solver.retrieveDeliveryQuantity(solver.presetX, [&](ID v, ID t, ID i) { return (getSolution(solver.x.xQuantity[v][t][i])); });
 }
 
