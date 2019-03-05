@@ -108,6 +108,7 @@ public:
     LinearExpr totalCostInPeriod(int start, int size, bool addInitial = true);
     LinearExpr routingCostInPeriod(int start, int size);
     LinearExpr holdingCostInPeriod(int start, int size, bool addInitial = true);
+    LinearExpr estimatedRoutingCost();
     //LinearExpr increasedHoldingCost(ID t);
     LinearExpr restQuantityUntilPeriod(ID node, int size);
     LinearExpr totalShortageQuantity();
@@ -170,7 +171,7 @@ protected:
         //mpSolver.setObjective(
         //    (routingCostInPeriod(0, input.periodNum) + k * holdingCostInPeriod(0, input.nodeNum)),
         //    OptimaOrientation::Minimize);
-        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum), OptimaOrientation::Minimize);
+        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum) + x.xSubtour, OptimaOrientation::Minimize);
     }
     void setShortageQuantityObjective() {
         mpSolver.setObjective(totalShortageQuantity(), OptimaOrientation::Minimize);
@@ -323,6 +324,8 @@ protected:
         List<DecisionVar> xMinLevel;         // minimal surplus for nodes
         List<DecisionVar> xShortage;         // shortage quantity for nodes,always non-negative
         List3D<DecisionVar> xVisited;
+        DecisionVar xSubtour;
+        List<DecisionVar> xSt;
     } x;
 
     struct {
@@ -356,9 +359,10 @@ protected:
     class RelaxedSolutionFound : public GRBCallback {
         IrpModelSolver &solver;
         const IrpModelSolver::Input &input;
+        int iterNoImprove;
 
     public:
-        RelaxedSolutionFound(IrpModelSolver &sol) :solver(sol), input(sol.input) {}
+        RelaxedSolutionFound(IrpModelSolver &sol) :solver(sol), input(sol.input), iterNoImprove(0) {}
 
     protected:
         void callback();
