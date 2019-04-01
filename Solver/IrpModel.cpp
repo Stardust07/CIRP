@@ -26,14 +26,10 @@ bool IrpModelSolver::solve() {
     if (!cfg.isEliminationLazy() && !cfg.isSubtoursAllowed()) {
         addSubtourEliminationConstraint();
     }
-    if (cfg.useBenchmark || cfg.isEliminationLazy()) {
-        SolutionFound cb(*this);
-        mpSolver.setCallback(&cb);
-    }
-    
-    if (cfg.isPresetEnabled()) {
-        setInitSolution();
-    }
+    SolutionFound cb(*this);
+    if (cfg.useBenchmark || cfg.isEliminationLazy()) { mpSolver.setCallback(&cb); }
+
+    if (cfg.isPresetEnabled()) { setInitSolution(); }
     if (cfg.isShortageRelaxed()) {
         setShortageQuantityObjective();
         if (!mpSolver.optimize() || mpSolver.getObjectiveValue() > 0) {
@@ -62,7 +58,8 @@ bool IrpModelSolver::solveIteratively() {
 
     relaxTspSubtourConstraint();
     cfg.subtourPolicy = Configuration::SubtourPolicy::EliminateAllSubtours;
-    currentObjective = { 0, 0, INFINITY };
+    currentObjective = { INFINITY, INFINITY, INFINITY };
+    cfg.useBenchmark = true;
 
     addDecisionVars();
     addPathConnectivityConstraint();
@@ -970,10 +967,10 @@ IrpModelSolver::LinearExpr IrpModelSolver::estimatedRoutingCost() {
             }
         }
         //mpSolver.makeConstraint(visitedTime <= 4);
-        penalty += 4000 * visitedTime;
+        penalty += aux.visitParameter * visitedTime;
     }   
 
-    return (0.25 * routingCostInPeriod(0, input.periodNum) + penalty);
+    return (aux.routingParameter * routingCostInPeriod(0, input.periodNum) + penalty);
 }
 
 // TODO[qym][5]: to delete 
@@ -1355,7 +1352,14 @@ void IrpModelSolver::RelaxedSolutionFound::callback() {
     try {
         if (where == GRB_CB_MIPSOL) {
             //if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > min(solver.currentObjective.totalCost, input.referenceObjective)) { return; }
-            //if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > solver.currentObjective.totalCost) { cout << endl; return; }
+            //{
+            //    double bestObj =
+            //        solver.currentObjective.holdingCost
+            //        + solver.currentObjective.routingCost * solver.aux.routingParameter
+            //        + 4 * solver.aux.visitParameter;
+            //    if (getDoubleInfo(GRB_CB_MIPSOL_OBJ) > bestObj) { cout << endl;return; }
+            //}
+
             // eliminate sub tours.
             if (iterNoImprove > iterNoImprove) {
                 bool subtourFound = solver.eliminateSubtour(
@@ -1488,6 +1492,9 @@ void IrpModelSolver::RelaxedSolutionFound::callback() {
                 solver.currentObjective.totalCost = holdingCost + routingCost;
                 retrieveDeliveryQuantity();
                 solver.convertTourToEdges(solver.presetX, tours);
+                if (solver.cfg.useBenchmark && (solver.currentObjective.totalCost <= solver.input.bestObjective)) {
+                    abort();
+                }
                 // record path.
                 /*
                 {

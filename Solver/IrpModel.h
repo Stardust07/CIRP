@@ -79,7 +79,7 @@ public:
     static constexpr double Infinity = MpSolver::Infinity;
     static constexpr auto DefaultObjectiveOptimaOrientation = OptimaOrientation::Minimize;
     static constexpr int MillisecondsPerSecond = 1000;
-    static constexpr int DefaultTimeLimitSecond = 600;
+    static constexpr int DefaultTimeLimitSecond = 1800;
     static constexpr int DefaultMaxThreadNum = 4;
     static constexpr int DefaultSlideWindowSize = 3;
     static constexpr double DefaultDoubleGap = 0.001;
@@ -171,7 +171,7 @@ protected:
         //mpSolver.setObjective(
         //    (routingCostInPeriod(0, input.periodNum) + k * holdingCostInPeriod(0, input.nodeNum)),
         //    OptimaOrientation::Minimize);
-        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum) + x.xSubtour, OptimaOrientation::Minimize);
+        mpSolver.setObjective(totalCostInPeriod(0, input.periodNum), OptimaOrientation::Minimize);
     }
     void setShortageQuantityObjective() {
         mpSolver.setObjective(totalShortageQuantity(), OptimaOrientation::Minimize);
@@ -324,7 +324,7 @@ protected:
         List<DecisionVar> xMinLevel;         // minimal surplus for nodes
         List<DecisionVar> xShortage;         // shortage quantity for nodes,always non-negative
         List3D<DecisionVar> xVisited;
-        DecisionVar xSubtour;
+        //DecisionVar xSubtour;
         List<DecisionVar> xSt;
     } x;
 
@@ -332,6 +332,8 @@ protected:
         List<bool> isPeriodFixed;  // isPeriodFixed[t] = true shows the routing of period t is fixed.
         List2D<bool> skipNode;
         String tspCacheFilePath;
+        double visitParameter = 0;
+        double routingParameter = 1;
     } aux;
 
     class SolutionFound : public GRBCallback {
