@@ -99,7 +99,7 @@ void Simulator::run(const String &envPath) {
 void Simulator::debug() {
     Task task;
     task.instSet = "";
-    task.instId = "h6c2n50.1";
+    task.instId = "h6c1n50.1";
     task.randSeed = "1500972793";
     //task.randSeed = to_string(RandSeed::generate());
     task.timeout = "180";
@@ -128,7 +128,7 @@ void Simulator::benchmark(int repeat) {
     // EXTEND[szx][5]: read it from InstanceList.txt.
     vector<String> instList;
     for (int c = 1; c <= 2; ++c) {
-        //// h3, small instances
+        // h3, small instances
         //for (int i = 5; i <= 50; i += 5) {
         //    for (int j = 1; j <= 5; ++j) {
         //        ostringstream oss;
@@ -136,7 +136,7 @@ void Simulator::benchmark(int repeat) {
         //        instList.push_back(oss.str());
         //    }
         //}
-        //// h6, small instances
+        // h6, small instances
         //for (int i = 5; i <= 30; i += 5) {
         //    for (int j = 1; j <= 5; ++j) {
         //        ostringstream oss;
@@ -145,20 +145,75 @@ void Simulator::benchmark(int repeat) {
         //    }
         //}
         // h6, large instances
-        for (int i = 50; i <= 200; i *= 2) {
-            for (int j = 1; j <= 10; ++j) {
-                ostringstream oss;
-                oss << "h" << 6 << "c" << c << "n" << i << "." << j;
-                instList.push_back(oss.str());
-            }
-        }
+        //for (int i = 50; i <= 200; i *= 2) {
+        //    for (int j = 1; j <= 10; ++j) {
+        //        ostringstream oss;
+        //        oss << "h" << 6 << "c" << c << "n" << i << "." << j;
+        //        instList.push_back(oss.str());
+        //    }
+        //}
     }
-    //vector<String> instList({ "abs1n50", "abs2n50", "abs3n50", "abs4n50", "abs5n50",
-    //    "abs6n50", "abs7n50", "abs8n50", "abs9n50", "abs10n50",
-    //    "abs1n100", "abs2n100", "abs3n100", "abs4n100", "abs5n100",
-    //    "abs6n100", "abs7n100", "abs8n100", "abs9n100", "abs10n100",
-    //    "abs1n200", "abs2n200", "abs3n200", "abs4n200", "abs5n200",
-    //    "abs6n200", "abs7n200", "abs8n200", "abs9n200", "abs10n200" });
+    instList.push_back("h6c1n50.1");
+    instList.push_back("h6c1n50.2");
+    instList.push_back("h6c1n50.3");
+    instList.push_back("h6c1n50.4");
+    instList.push_back("h6c1n50.5");
+    instList.push_back("h6c1n50.6");
+    instList.push_back("h6c1n50.7");
+    instList.push_back("h6c1n50.8");
+    instList.push_back("h6c1n50.9");
+    instList.push_back("h6c1n50.10");
+    instList.push_back("h6c1n100.1");
+    instList.push_back("h6c1n100.2");
+    instList.push_back("h6c1n100.3");
+    instList.push_back("h6c1n100.4");
+    instList.push_back("h6c1n100.5");
+    instList.push_back("h6c1n100.6");
+    instList.push_back("h6c1n100.7");
+    instList.push_back("h6c1n100.8");
+    instList.push_back("h6c1n100.9");
+    instList.push_back("h6c1n100.10");
+    instList.push_back("h6c1n200.1");
+    instList.push_back("h6c1n200.2");
+    instList.push_back("h6c1n200.3");
+    instList.push_back("h6c1n200.4");
+    instList.push_back("h6c1n200.5");
+    instList.push_back("h6c1n200.6");
+    instList.push_back("h6c1n200.7");
+    instList.push_back("h6c1n200.8");
+    instList.push_back("h6c1n200.9");
+    instList.push_back("h6c1n200.10");
+
+    instList.push_back("h6c2n50.1");
+    instList.push_back("h6c2n50.2");
+    instList.push_back("h6c2n50.3");
+    instList.push_back("h6c2n50.4");
+    instList.push_back("h6c2n50.5");
+    instList.push_back("h6c2n50.6");
+    instList.push_back("h6c2n50.7");
+    instList.push_back("h6c2n50.8");
+    instList.push_back("h6c2n50.9");
+    instList.push_back("h6c2n50.10");
+    instList.push_back("h6c2n100.1");
+    instList.push_back("h6c2n100.2");
+    instList.push_back("h6c2n100.3");
+    instList.push_back("h6c2n100.4");
+    instList.push_back("h6c2n100.5");
+    instList.push_back("h6c2n100.6");
+    instList.push_back("h6c2n100.7");
+    instList.push_back("h6c2n100.8");
+    instList.push_back("h6c2n100.9");
+    instList.push_back("h6c2n100.10");
+    instList.push_back("h6c2n200.1");
+    instList.push_back("h6c2n200.2");
+    instList.push_back("h6c2n200.3");
+    instList.push_back("h6c2n200.4");
+    instList.push_back("h6c2n200.5");
+    instList.push_back("h6c2n200.6");
+    instList.push_back("h6c2n200.7");
+    instList.push_back("h6c2n200.8");
+    instList.push_back("h6c2n200.9");
+    instList.push_back("h6c2n200.10");
     for (int i = 0; i < repeat; ++i) {
         //shuffle(instList.begin(), instList.end(), rgen);
         for (auto inst = instList.begin(); inst != instList.end(); ++inst) {

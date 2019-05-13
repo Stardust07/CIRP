@@ -79,7 +79,7 @@ public:
     static constexpr double Infinity = MpSolver::Infinity;
     static constexpr auto DefaultObjectiveOptimaOrientation = OptimaOrientation::Minimize;
     static constexpr int MillisecondsPerSecond = 1000;
-    static constexpr int DefaultTimeLimitSecond = 1800;
+    static constexpr int DefaultTimeLimitSecond = 60;
     static constexpr int DefaultMaxThreadNum = 4;
     static constexpr int DefaultSlideWindowSize = 3;
     static constexpr double DefaultDoubleGap = 0.001;
@@ -117,7 +117,12 @@ public:
     double getDurationInSecond() { return elapsedSeconds; }
     double getHoldingCost(const List3D<DecisionVar> &quantity, GetVarValue<double> getValue);
     double getHoldingCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(holdingCostInPeriod(start, size, addInitial)); }
-    double getTotalCostInPeriod(int start, int size, bool addInitial = true) { return mpSolver.getValue(totalCostInPeriod(start, size, addInitial)); }
+    double getTotalCostInPeriod(int start, int size, bool addInitial = true) {
+        currentObjective.holdingCost = mpSolver.getValue(holdingCostInPeriod(start, size, addInitial));
+        currentObjective.routingCost = mpSolver.getValue(routingCostInPeriod(start, size));
+        currentObjective.totalCost = currentObjective.holdingCost + currentObjective.routingCost;
+        return mpSolver.getValue(totalCostInPeriod(start, size, addInitial));
+    }
     double getRestQuantityUntilPeriod(ID node, int size) { return mpSolver.getValue(restQuantityUntilPeriod(node, size)); }
     int getIntQuantity(ID v, ID t, ID n) { return lround(mpSolver.getValue(x.xQuantity[v][t][n])); }
 
@@ -188,10 +193,11 @@ protected:
         }
 
         // set mpsolver parameters
-        setTimeLimitInSecond(DefaultTimeLimitSecond);
         setMaxThreadNum(DefaultMaxThreadNum);
         setOutput(cfg.enableMpOutput);
-
+        if (!cfg.isPresetEnabled()) {
+            setTimeLimitInSecond(DefaultTimeLimitSecond);
+        }
         // set auxilury data
         initSkipNodes();
         initRoutingCost();
@@ -332,8 +338,8 @@ protected:
         List<bool> isPeriodFixed;  // isPeriodFixed[t] = true shows the routing of period t is fixed.
         List2D<bool> skipNode;
         String tspCacheFilePath;
-        double visitParameter = 0;
-        double routingParameter = 1;
+        double visitParameter = 3000;
+        double routingParameter = 0.5;
     } aux;
 
     class SolutionFound : public GRBCallback {

@@ -29,6 +29,10 @@ namespace szx {
 class Solver {
     #pragma region Type
 public:
+    template<typename T>
+    using List2D = List<List<T>>;
+    template<typename T>
+    using List3D = List2D<List<T>>;
     // commmand line interface.
     struct Cli {
         static constexpr int MaxArgLen = 256;
@@ -106,7 +110,7 @@ public:
         }
 
 
-        Algorithm alg = Configuration::Algorithm::IterativeModel; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
+        Algorithm alg = Configuration::Algorithm::Test; // OPTIMIZE[szx][3]: make it a list to specify a series of algorithms to be used by each threads in sequence.
         int threadNumPerWorker = (std::min)(1, static_cast<int>(std::thread::hardware_concurrency()));
     };
 

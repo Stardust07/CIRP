@@ -107,6 +107,7 @@ public:
     // decisions.
     DecisionVar makeVar(VariableType type, double lb, double ub, const String &name) { return model.addVar(lb, ub, 0, static_cast<char>(type), name); }
     DecisionVar makeVar(VariableType type, double lb = 0, double ub = 1.0) { return makeVar(type, lb, ub, ""); }
+    void removeVar(DecisionVar &var) { model.remove(var); }
 
     double getIntValue(const LinearExpr &expr) const { return round(getValue(expr)); }
     double getValue(const LinearExpr &expr) const { return (expr.getValue()); }
@@ -144,7 +145,7 @@ public:
 
     // constraints.
     Constraint makeConstraint(const LinearRange &r, const String &name = "") { return model.addConstr(r, name); }
-    void removeConstraint(Constraint constraint) { model.remove(constraint); }
+    void removeConstraint(Constraint &constraint) { model.remove(constraint); }
     int getConstraintCount() const { return model.get(GRB_IntAttr_NumConstrs); }
 
     // objectives.

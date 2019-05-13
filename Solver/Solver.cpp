@@ -303,7 +303,8 @@ bool Solver::optimize(Solution &sln, ID workerId) {
     case Configuration::Algorithm::Test:solveWithTest(sln); break;
     case Configuration::Algorithm::CompleteModel:
     default:
-        solveWithCompleteModel(sln, true);
+        solveWithCompleteModel(sln);
+        //solveWithCompleteModel(sln, true);
         break;
     }
 
@@ -321,6 +322,11 @@ bool Solver::solveWithCompleteModel(Solution & sln, bool findFeasibleFirst) {
 
     // record solution.
     sln.totalCost = modelSolver.getTotalCostInPeriod(0, input.periodnum());
+    //ofstream ofs("lowerbound.csv", ios::app);
+    //ofs.seekp(0, ios::end);
+    //ofs << sln.totalCost << endl;
+    //ofs.close();
+
     retrieveOutputFromModel(sln, modelSolver.presetX);
 
     return true;
@@ -751,22 +757,463 @@ bool Solver::solveWithTspRelaxed(Solution & sln, bool findFeasibleFirst) {
 }
 
 bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
+    const String TspCacheDir("lkh/TspCache/");
+    System::makeSureDirExist(TspCacheDir);
+
     IrpModelSolver irpSolver;
     if (findFeasibleFirst) { irpSolver.setFindFeasiblePreference(); }
 
     convertToModelInput(irpSolver.input, input);
     irpSolver.routingCost = aux.routingCost;
+    irpSolver.setTspCachePath(TspCacheDir + env.friendlyInstName() + ".csv");
     if (!irpSolver.solveIteratively()) { return false; }
 
     IrpModelSolver::PresetX &presetX(irpSolver.presetX);
-    IrpModelSolver::PresetX bestSln(irpSolver.presetX);
-    double minCost = irpSolver.currentObjective.totalCost;
     double elapsedSeconds = irpSolver.getDurationInSecond();
     double holdingObj = irpSolver.currentObjective.holdingCost;
     double routingObj = irpSolver.currentObjective.routingCost;
     sln.totalCost = irpSolver.currentObjective.totalCost;
     cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
 
+    IrpModelSolver::PresetX bestSln(irpSolver.presetX);
+    double bestObj = irpSolver.currentObjective.totalCost;
+
+    // search
+    // define parameters.
+    const int StopIter = 200;
+    const int MoveThreshold = 20;
+    const int OptimizationCycle = 10;
+
+    // define moves.
+    struct BasicMove {
+        ID vehicle;
+        ID period;
+        ID node;
+        ID preNode;
+        ID postNode;
+        double quantity;
+
+        BasicMove() :vehicle(-1), period(-1), node(-1), preNode(-1), postNode(-1), quantity(0){}
+        BasicMove(ID v, ID t, ID i, ID pre, ID post, double q) :vehicle(v), period(t), node(i), preNode(pre), postNode(post), quantity(q){}
+    };
+
+    struct SwapMove {
+        // actions[0] presents add move, respectively, actions[1] presents remove move.
+        List<BasicMove> actions;
+
+        SwapMove() { actions.resize(2, BasicMove()); }
+        SwapMove(ID v, ID i, ID t1, ID t2, ID pre1 = -1, ID post1 = -1, ID pre2 = -1, ID post2 = -1) {
+            actions.push_back({ v, t1, i, pre1, post1, 0 });
+            actions.push_back({ v, t2, i, pre2, post2, 0 });
+        }
+    };
+    // initialize auxiliary data structure
+    presetX.xVisited.resize(input.vehicles_size());
+    for (ID v = 0; v < input.vehicles_size(); ++v) {
+        presetX.xVisited[v].resize(input.periodnum());
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            presetX.xVisited[v][t].resize(input.nodes_size(), false);
+            for (ID i = 0; i < input.nodes_size(); ++i) {
+                if (presetX.xQuantity[v][t][i] > IrpModelSolver::DefaultDoubleGap) {
+                    presetX.xVisited[v][t][i] = true;
+                }
+            }
+        }
+    }
+
+    List3D<bool> removeFeasible;
+    removeFeasible.resize(input.vehicles_size());
+    for (ID v = 0; v < input.vehicles_size(); ++v) {
+        removeFeasible[v].resize(input.periodnum());
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            removeFeasible[v][t].resize(input.nodes_size(), false);
+            if (!presetX.xVisited[v][t][0]) { continue; }
+            for (ID i = 1; i < input.nodes_size(); ++i) {
+                if (!presetX.xVisited[v][t][i]) { continue; }
+                removeFeasible[v][t][i] = true;
+                double rest = input.nodes()[i].initquantity();
+                for (ID p = 0; p < input.periodnum(); ++p) {
+                    rest -= input.nodes()[i].unitdemand();
+                    rest += ((p != t) ? presetX.xQuantity[v][p][i] : 0);
+                    if ((p >= t) && (rest < 0)) {
+                        removeFeasible[v][t][i] = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    List<double> maxProvidedBySupplier;
+    List2D<double> maxDeliveryToCustomer;
+    List2D<double> vehicleCapacity;
+    List3D<double> addFeasible;
+    maxProvidedBySupplier.resize(input.periodnum(), 0);
+    maxDeliveryToCustomer.resize(input.periodnum(), List<double>(input.nodes_size(), 0));
+    vehicleCapacity.resize(input.vehicles_size(), List<double>(input.periodnum(), 0));
+    addFeasible.resize(input.vehicles_size(), List2D<double>(input.periodnum(), List<double>(input.nodes_size(), 0)));
+    //for (ID i = 1; i < input.nodes_size(); ++i) {
+    //    if (input.nodes()[i].holdingcost() >= input.nodes()[0].holdingcost()) { continue; }
+    //    double unitDemand = input.nodes()[i].unitdemand();
+    //    double supplierUnitDemand = input.nodes()[0].unitdemand();
+    //    for (ID v = 0; v < input.vehicles_size(); ++v) {
+    //        double rest = input.nodes()[i].initquantity();
+    //        double restOfSupplier = input.nodes()[0].initquantity();
+    //        for (ID t = 0; t < input.periodnum(); ++t) {
+    //            vehicleCapacity[v][t] = input.vehicles()[v].capacity() - presetX.xQuantity[v][t][0];
+    //            rest -= unitDemand;
+    //            rest += presetX.xQuantity[v][t][i];
+    //            restOfSupplier += supplierUnitDemand;
+    //            restOfSupplier -= presetX.xQuantity[v][t][0];
+    //            if (!presetX.xVisited[v][t][0] || presetX.xVisited[v][t][i]) { continue; }
+    //            double deliveryQuantity = vehicleCapacity[v][t];
+    //            // calculate max quantity provided by supplier.
+    //            double restOfSupplierIfDelivered = restOfSupplier;
+    //            maxProvidedBySupplier[t] = restOfSupplier;
+    //            for (ID p = t + 1; p < input.periodnum(); ++p) {
+    //                restOfSupplierIfDelivered += supplierUnitDemand;
+    //                restOfSupplierIfDelivered -= presetX.xQuantity[v][p][0];
+    //                maxProvidedBySupplier[t] = min(maxProvidedBySupplier[t], restOfSupplierIfDelivered);
+    //            }
+    //            deliveryQuantity = min(deliveryQuantity, maxProvidedBySupplier[t][i]);
+    //            // calculate max delivery to customer.
+    //            double restOfCustomerIfDelivered = rest + unitDemand;
+    //            maxDeliveryToCustomer[t][i] = input.nodes()[i].capacity() - restOfCustomerIfDelivered;
+    //            for (ID p = t + 1; p < input.periodnum(); ++p) {
+    //                restOfCustomerIfDelivered -= unitDemand;
+    //                restOfCustomerIfDelivered += presetX.xQuantity[v][p][i];
+    //                maxDeliveryToCustomer[t][i] = min(maxDeliveryToCustomer[t][i], input.nodes()[i].capacity() - restOfCustomerIfDelivered);
+    //            }
+    //            deliveryQuantity = min(deliveryQuantity, maxDeliveryToCustomer[t][i]);
+    //            addFeasible[v][t][i] = deliveryQuantity;
+    //        }
+    //    }
+    //}
+    {
+        // init data structure
+        double supplierUnitDemand = input.nodes()[0].unitdemand();
+        double restOfSupplier = input.nodes()[0].initquantity();
+        List<double> restOfCustomers(input.nodes_size(), 0);
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            restOfSupplier += supplierUnitDemand;
+            for (ID v = 0; v < input.vehicles_size(); ++v) {
+                vehicleCapacity[v][t] = input.vehicles()[v].capacity() - presetX.xQuantity[v][t][0];
+                restOfSupplier -= presetX.xQuantity[v][t][0];
+            }
+            // calculate max quantity provided by supplier.
+            double restOfSupplierIfDelivered = restOfSupplier;
+            maxProvidedBySupplier[t] = restOfSupplier;
+            for (ID p = t + 1; p < input.periodnum(); ++p) {
+                restOfSupplierIfDelivered += supplierUnitDemand;
+                for (ID v = 0; v < input.vehicles_size(); ++v) {
+                    restOfSupplierIfDelivered -= presetX.xQuantity[v][p][0];
+                }
+                maxProvidedBySupplier[t] = min(maxProvidedBySupplier[t], restOfSupplierIfDelivered);
+            }
+            // calculate max delivery to customer.
+            for (ID i = 1; i < input.nodes_size(); ++i) {
+                if (input.nodes()[i].holdingcost() >= input.nodes()[0].holdingcost()) { continue; }
+                double unitDemand = input.nodes()[i].unitdemand();
+                if (t == 0) { restOfCustomers[i] = input.nodes()[i].initquantity(); }
+                restOfCustomers[i] -= unitDemand;
+                for (ID v = 0; v < input.vehicles_size(); ++v) {
+                    restOfCustomers[i] += presetX.xQuantity[v][t][i];
+                }
+                double restOfCustomerIfDelivered = restOfCustomers[i] + unitDemand;
+                maxDeliveryToCustomer[t][i] = input.nodes()[i].capacity() - restOfCustomerIfDelivered;
+                for (ID p = t + 1; p < input.periodnum(); ++p) {
+                    restOfCustomerIfDelivered -= unitDemand;
+                    for (ID v = 0; v < input.vehicles_size(); ++v) {
+                        restOfCustomerIfDelivered += presetX.xQuantity[v][p][i];
+                    }
+                    maxDeliveryToCustomer[t][i] = min(maxDeliveryToCustomer[t][i], input.nodes()[i].capacity() - restOfCustomerIfDelivered);
+                }
+                for (ID v = 0; v < input.vehicles_size(); ++v) {
+                    // TODO[qym][5]: allow add node to unvisited period. 
+                    if (!presetX.xVisited[v][t][0] || presetX.xVisited[v][t][i]) { continue; }
+                    addFeasible[v][t][i] = min(vehicleCapacity[v][t], maxProvidedBySupplier[t], maxDeliveryToCustomer[t][i]);
+                }
+            }
+        }
+    }
+   
+    // methods.
+    auto findRemove = [&](BasicMove &mv, double &objDelta)->bool {
+        double supplierHCost = input.nodes()[0].holdingcost();
+        for (ID v = 0; v < input.vehicles_size(); ++v) {
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                if (!presetX.xVisited[v][t][0]) { continue; }
+                for (ID i = 1; i < input.nodes_size(); ++i) {
+                    if (!removeFeasible[v][t][i]) { continue; }
+                    double hc = (input.periodnum() - t) * (supplierHCost - input.nodes()[i].holdingcost()) * presetX.xQuantity[v][t][i];
+                    // find node location
+                    ID pre = -1, post = -1;
+                    for (ID j = 0; j < input.nodes_size(); ++j) {
+                        if (i == j) { continue; }
+                        if (presetX.xEdge[v][t][j][i]) { pre = j; }
+                        if (presetX.xEdge[v][t][i][j]) { post = j; }
+                        if ((pre >= 0) && (post >= 0)) { break; }
+                    }
+                    if ((pre < 0) || (post < 0)) { cout << "Warning"; system("pause"); return false; }
+                    double rc = aux.routingCost[pre][post] - aux.routingCost[pre][i] - aux.routingCost[i][post];
+                    if (hc + rc < objDelta) {
+                        objDelta = hc + rc;
+                        mv.node = i;
+                        mv.period = t;
+                        mv.vehicle = v;
+                        mv.preNode = pre;
+                        mv.postNode = post;
+                        mv.quantity = 0;
+                    }
+                }
+            }
+        }
+        return (mv.node >= 0);
+    };
+
+    auto findAdd = [&](BasicMove &mv, double &objDelta)->bool {
+        double supplierHCost = input.nodes()[0].holdingcost();
+
+        for (ID v = 0; v < input.vehicles_size(); ++v) {
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                if (!presetX.xVisited[v][t][0]) { continue; }
+                for (ID i = 1; i < input.nodes_size(); ++i) {
+                    if (addFeasible[v][t][i] <= 0) { continue; }
+                    double hc = (input.periodnum() - t) * (input.nodes()[i].holdingcost() - supplierHCost) * addFeasible[v][t][i];
+                    // find node location
+                    ID pre = -1, post = -1;
+                    double rc = HUGE_VAL;
+                    for (ID j = 0; j < input.nodes_size(); ++j) {
+                        if ((i == j) || !presetX.xVisited[v][t][j]){ continue; }
+                        for (ID k = 0; k < input.nodes_size(); ++k) {
+                            if ((i == k) || (j == k)) { continue; }
+                            if (!presetX.xEdge[v][t][j][k]) { continue; }
+                            if (aux.routingCost[j][i] + aux.routingCost[i][k] - aux.routingCost[j][k] < rc) {
+                                rc = aux.routingCost[j][i] + aux.routingCost[i][k] - aux.routingCost[j][k];
+                                pre = j;
+                                post = k;
+                            }
+                        }
+                    }
+                    if ((pre < 0) || (post < 0)) { cout << "Warning"; system("pause"); return false; }
+                    if (hc + rc < objDelta) {
+                        objDelta = hc + rc;
+                        mv.node = i;
+                        mv.period = t;
+                        mv.vehicle = v;
+                        mv.preNode = pre;
+                        mv.postNode = post;
+                        mv.quantity = addFeasible[v][t][i];
+                    }
+                }
+            }
+        }
+        return (mv.node >= 0);
+    };
+
+    auto makeRemove = [&](const BasicMove &mv, double objDelta) {
+        double oldQuantity = presetX.xQuantity[mv.vehicle][mv.period][mv.node];
+        presetX.xVisited[mv.vehicle][mv.period][mv.node] = false;
+        presetX.xQuantity[mv.vehicle][mv.period][0] -= oldQuantity;
+        presetX.xQuantity[mv.vehicle][mv.period][mv.node] = mv.quantity;
+        presetX.xEdge[mv.vehicle][mv.period][mv.preNode][mv.node] = false;
+        presetX.xEdge[mv.vehicle][mv.period][mv.node][mv.postNode] = false;
+        presetX.xEdge[mv.vehicle][mv.period][mv.preNode][mv.postNode] = true;
+        sln.totalCost += objDelta;
+
+        removeFeasible[mv.vehicle][mv.period][mv.node] = false;
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            if (!presetX.xVisited[mv.vehicle][t][mv.node]) { continue; }
+            removeFeasible[mv.vehicle][t][mv.node] = true;
+            double rest = input.nodes()[mv.node].initquantity();
+            for (ID p = 0; p < input.periodnum(); ++p) {
+                rest -= input.nodes()[mv.node].unitdemand();
+                rest += ((p != t) ? presetX.xQuantity[mv.vehicle][p][mv.node] : 0);
+                if ((p >= t) && (rest < 0)) {
+                    removeFeasible[mv.vehicle][t][mv.node] = false;
+                    break;
+                }
+            }
+        }
+        
+        // for vehicle. 
+        vehicleCapacity[mv.vehicle][mv.period] += oldQuantity;
+        // for supplier
+        // TODO[qym][0]: 
+        double supplierUnitDemand = input.nodes()[0].unitdemand();
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            maxProvidedBySupplier[t];
+            double restOfSupplierIfDelivered = restOfSupplier;
+            maxProvidedBySupplier[v][t][i] = restOfSupplier;
+            for (ID p = t + 1; p < input.periodnum(); ++p) {
+                restOfSupplierIfDelivered += supplierUnitDemand;
+                restOfSupplierIfDelivered -= presetX.xQuantity[v][p][0];
+                maxProvidedBySupplier[v][t][i] = min(maxProvidedBySupplier[v][t][i], restOfSupplierIfDelivered);
+            }
+            deliveryQuantity = min(deliveryQuantity, maxProvidedBySupplier[v][t][i]);
+        }
+        // for customer.
+        double customerUnitDemand = input.nodes()[mv.node].unitdemand();
+        //double restOfCustmer = input.nodes()[mv.node].initquantity();
+        //for (ID t = 0; t < input.periodnum(); ++t) {
+        //    restOfCustmer -= customerUnitDemand;
+        //    for (ID v = 0; v < input.vehicles_size(); ++v) {
+        //        restOfCustmer += presetX.xQuantity[v][t][mv.node];
+        //    }
+        //    double restIfDelivered = restOfCustmer + customerUnitDemand;
+        //    maxDeliveryToCustomer[t][mv.node] = input.nodes()[mv.node].capacity() - restIfDelivered;
+        //    for (ID p = t + 1; p < input.periodnum(); ++p) {
+        //        restIfDelivered -= customerUnitDemand;
+        //        for (ID v = 0; v < input.vehicles_size(); ++v) {
+        //            restIfDelivered += presetX.xQuantity[v][p][mv.node];
+        //        }
+        //        maxDeliveryToCustomer[t][mv.node] = min(maxDeliveryToCustomer[t][mv.node], input.nodes()[mv.node].capacity() - restIfDelivered);
+        //    }
+        //}
+        for (ID v = 0; v < input.vehicles_size(); ++v) {
+            oldQuantity += presetX.xQuantity[v][mv.period][mv.node];
+        }
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            if (t == mv.period) { continue; }
+            if (t > mv.period) {
+                maxDeliveryToCustomer[t][mv.node] += oldQuantity;
+            } else {
+                if (customerUnitDemand >= oldQuantity) {
+                    continue;
+                } else {
+                    //maxDeliveryToCustomer[t][mv.node] += oldQuantity - customerUnitDemand;
+                    double maxQuantity = input.nodes()[mv.node].capacity() - input.nodes()[mv.node].initquantity();
+                    maxDeliveryToCustomer[t][mv.node] = HUGE_VAL;
+                    for (ID p = 0; p < input.periodnum(); ++p) {
+                        if (p != t) {
+                            double delivery = 0;
+                            for (ID v = 0; v < input.vehicles_size(); ++v) {
+                                delivery += presetX.xQuantity[v][p][mv.node];
+                            }
+                            maxQuantity -= delivery;
+                            maxQuantity += customerUnitDemand;
+                        }
+                        if (p >= t) {
+                            maxDeliveryToCustomer[t][mv.node] = min(maxDeliveryToCustomer[t][mv.node], maxQuantity);
+                        }
+                    }
+                }
+            }
+        }
+        for (ID v = 0; v < input.vehicles_size(); ++v) {
+            for (ID t = 0; t < input.periodnum(); ++t) {
+                for (ID i = 1; i < input.nodes_size(); ++i) {
+                    addFeasible[v][t][i] = min(vehicleCapacity[v][t], maxProvidedBySupplier[t], maxDeliveryToCustomer[t][i]);
+                }
+            }
+        }
+    };
+
+    auto makeAdd = [&](const BasicMove &mv, double objDelta) {
+        presetX.xVisited[mv.vehicle][mv.period][mv.node] = true;
+        presetX.xQuantity[mv.vehicle][mv.period][mv.node] = mv.quantity;
+        presetX.xQuantity[mv.vehicle][mv.period][0] += mv.quantity;
+        presetX.xEdge[mv.vehicle][mv.period][mv.preNode][mv.node] = true;
+        presetX.xEdge[mv.vehicle][mv.period][mv.node][mv.postNode] = true;
+        presetX.xEdge[mv.vehicle][mv.period][mv.preNode][mv.postNode] = false;
+        sln.totalCost += objDelta;
+
+        for (ID t = 0; t < input.periodnum(); ++t) {
+            if (!presetX.xVisited[mv.vehicle][t][mv.node]) { continue; }
+            removeFeasible[mv.vehicle][t][mv.node] = true;
+            double rest = input.nodes()[mv.node].initquantity();
+            for (ID p = 0; p < input.periodnum(); ++p) {
+                rest -= input.nodes()[mv.node].unitdemand();
+                rest += ((p != t) ? presetX.xQuantity[mv.vehicle][p][mv.node] : 0);
+                if ((p >= t) && (rest < 0)) {
+                    removeFeasible[mv.vehicle][t][mv.node] = false;
+                    break;
+                }
+            }
+        }
+
+        vehicleCapacity[mv.vehicle][mv.period] -= mv.quantity;
+
+
+    };
+    // start iterations.
+    int iter = 0;
+    int iterNoImprove = 0;
+    //找目标值增量最小的动作
+    while (iter < StopIter) {
+        if (iterNoImprove <= MoveThreshold) {
+            // find best from add and remove seperately.
+            BasicMove rmMv, addMv;
+            double rmObj = HUGE_VAL, addObj = HUGE_VAL;;
+            // remove
+            if (!findRemove(rmMv, rmObj)) {
+                cout << "Not find remove move.";
+            }
+           
+            //add
+            if (!findAdd(addMv, addObj)) {
+                cout << "Not find add move.";
+            }
+             // make move.
+            if (addObj < rmObj) {
+                makeAdd(addMv, addObj);
+            } else {
+                makeRemove(rmMv, rmObj);
+            }
+        } else {
+            // find best from add or remove or swap.
+            int moveType = rand() % 3;
+            double objDelta = HUGE_VAL;
+            if (moveType == 0) {
+                // add
+                BasicMove mv;
+                if (!findAdd(mv, objDelta)) {
+                    cout << "Not find add move.";
+                    system("pause");
+                }
+                // make move.
+                makeAdd(mv, objDelta);
+            } else if (moveType == 1) {
+                // remove
+                BasicMove mv;
+                if (!findRemove(mv, objDelta)) {
+                    cout << "Not find remove move."; 
+                    system("pause");
+                }
+                // make move.
+                makeRemove(mv, objDelta);
+            } else {
+                // swap
+                ;
+            }
+        }
+
+        if (iter % OptimizationCycle == 0) {
+            // optimize accurately.
+            IrpModelSolver inventorySolver(irpSolver.input);
+            if (findFeasibleFirst) { inventorySolver.setFindFeasiblePreference(); }
+            inventorySolver.routingCost = aux.routingCost;
+            inventorySolver.enablePresetSolution();
+            inventorySolver.presetX.xVisited = presetX.xVisited;
+            if (!inventorySolver.solveInventoryModel()) { return false; }
+            presetX.xQuantity = inventorySolver.presetX.xQuantity;
+            holdingObj = inventorySolver.getHoldingCostInPeriod(0, input.periodnum());
+
+            routingObj = 0;
+            if (!solveVrp(presetX, routingObj, elapsedSeconds, irpSolver.input.nodes)) { return false; }
+            cout << (holdingObj + routingObj) << "=" << routingObj << "(R) + " << holdingObj << "(H)\n";
+            sln.totalCost = (holdingObj + routingObj);
+        }
+        ++iterNoImprove;
+        ++iter;
+        if (sln.totalCost < bestObj) {
+            bestSln = presetX;
+            bestObj = sln.totalCost;
+            iterNoImprove = 0;
+        }
+    }
+
+
+    /*
     writePathToCsv(presetX);
     List<List<Set<ID>>> unvisitedNodes(input.vehicles_size(), List<Set<ID>>(input.periodnum()));
     presetX.xVisited.resize(input.vehicles_size());
@@ -783,18 +1230,6 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
             }
         }
     }
-    // local search: add node first, then delete node
-    struct AddMove {
-        ID vehicle;
-        ID period;
-        ID node;
-        ID preNode;
-        ID postNode;
-
-        AddMove() :vehicle(-1), period(-1), node(-1), preNode(-1), postNode(-1) {}
-        AddMove(ID v, ID t, ID i, ID pre, ID post) :vehicle(v), period(t), node(i), preNode(pre), postNode(post) {}
-    };
-    int iter = 151;
     while (iter < 150) {
         if (iter % 5 > 0) {
             double bestDelta = IrpModelSolver::Infinity;
@@ -928,6 +1363,7 @@ bool Solver::solveWithTest(Solution & sln, bool findFeasibleFirst) {
         }
         ++iter;
     }
+    */
     
     retrieveOutputFromModel(sln, bestSln);
     return true;
@@ -957,6 +1393,7 @@ bool Solver::solveWithIterativeModel(Solution & sln, bool findFeasibleFirst) {
 
     // local search?
     // TODO[qym][5]:  add nodes
+    // TODO[qym][5]: local search 
     while (false) {
         double delta = INT_MAX;
         for (ID v = 0; v < input.vehicles_size(); ++v) {
@@ -1035,7 +1472,7 @@ bool Solver::solveWithInventoryRelaxed(Solution & sln, bool findFeasibleFirst) {
     const int ReduceModelScaleIteration = 3;
     const int RandModelScaleIteration = 6;
     const int DefaultMoveCount = 2 - (rand() % 2);
-    const int DefaultTimeLimitPerIteration = 600;
+    const int DefaultTimeLimitPerIteration = 120;
     const int DefaultTimeLimitSecond = IrpModelSolver::DefaultTimeLimitSecond;
 
     // generate initial solution using slack constraints for customer's min level.

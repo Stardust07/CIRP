@@ -53,7 +53,10 @@ bool IrpModelSolver::solve() {
 
 bool IrpModelSolver::solveIteratively() {
     bool lazy = true;
-
+    // for time limit.
+    cfg.presetPolicy = Configuration::PresetPolicy::WithPresetSolution;
+    aux.isPeriodFixed.resize(input.periodNum, false);
+    setTimeLimitInSecond(10);
     initSolver();
 
     relaxTspSubtourConstraint();
@@ -68,7 +71,7 @@ bool IrpModelSolver::solveIteratively() {
     addCustomerLevelConstraint();
     addSupplierLevelConstraint();
     //setTotalCostObjective();
-    mpSolver.setObjective(estimatedRoutingCost() + holdingCostInPeriod(0, input.periodNum), OptimaOrientation::Minimize);
+    mpSolver.setObjective(estimatedRoutingCost()/* + holdingCostInPeriod(0, input.periodNum)*/, OptimaOrientation::Minimize);
 
     // use lazy constraint
     if (lazy) {
@@ -865,7 +868,7 @@ IrpModelSolver::LinearExpr IrpModelSolver::holdingCostInPeriod(int start, int si
 
 IrpModelSolver::LinearExpr IrpModelSolver::estimatedRoutingCost() {
     LinearExpr penalty = 0;
-    /*
+   /*
     {
         List<lkh::Tour> subtours;
         MpSolver tspSolver;
@@ -968,8 +971,9 @@ IrpModelSolver::LinearExpr IrpModelSolver::estimatedRoutingCost() {
         }
         //mpSolver.makeConstraint(visitedTime <= 4);
         penalty += aux.visitParameter * visitedTime;
-    }   
+    }
 
+    //return (aux.routingParameter * routingCostInPeriod(0, input.periodNum) + penalty + holdingCostInPeriod(0, input.periodNum));
     return (aux.routingParameter * routingCostInPeriod(0, input.periodNum) + penalty);
 }
 
